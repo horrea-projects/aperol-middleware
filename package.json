@@ -1,0 +1,17 @@
+{
+  "name": "aperol-middleware-uk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "netlify:build": "npm run build",
+    "lint": "echo \"no linter configured\""
+  },
+  "dependencies": {
+    "cross-fetch": "^4.0.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.8.0",
+    "typescript": "^5.7.0"
+  }
+}

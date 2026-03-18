@@ -1,0 +1,10 @@
+[build]
+  publish = "public"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[functions]]
+  name = "sync-uk"
+  schedule = "*/10 * * * *"
+

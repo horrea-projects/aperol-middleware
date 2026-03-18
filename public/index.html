@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Middleware UK — Logs & Stocks</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --ok: #3fb950;
+      --warn: #d29922;
+      --err: #f85149;
+      --accent: #58a6ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "SF Mono", "Consolas", "Ubuntu Mono", monospace;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem; color: var(--accent); }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--muted); font-weight: 600; }
+    section { margin-bottom: 2rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .level-info { color: var(--ok); }
+    .level-warn { color: var(--warn); }
+    .level-error { color: var(--err); }
+    .match-yes { color: var(--ok); }
+    .match-no { color: var(--warn); }
+    .meta { font-size: 0.75rem; color: var(--muted); max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
+    .loading { color: var(--muted); }
+    .error-msg { color: var(--err); }
+    .refresh { margin-bottom: 0.5rem; }
+    .refresh button {
+      background: var(--border);
+      color: var(--text);
+      border: none;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .refresh button:hover { background: var(--accent); color: var(--bg); }
+    #logs-list, #stock-table { min-height: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Middleware UK — Logs & comparaison stocks</h1>
+
+  <section>
+    <h2>Comparaison des stocks (Byrd vs Shopify — location UK)</h2>
+    <div class="refresh"><button type="button" id="refresh-stock">Actualiser</button></div>
+    <div class="card">
+      <div id="stock-loading" class="loading">Chargement…</div>
+      <div id="stock-error" class="error-msg" style="display:none;"></div>
+      <table id="stock-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Byrd (WMS)</th>
+            <th>Shopify UK</th>
+            <th>Aligné</th>
+          </tr>
+        </thead>
+        <tbody id="stock-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Derniers logs (sync)</h2>
+    <div class="refresh"><button type="button" id="refresh-logs">Actualiser</button></div>
+    <div class="card">
+      <div id="logs-loading" class="loading">Chargement…</div>
+      <div id="logs-error" class="error-msg" style="display:none;"></div>
+      <table id="logs-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Niveau</th>
+            <th>Événement</th>
+            <th>Détails</th>
+          </tr>
+        </thead>
+        <tbody id="logs-body"></tbody>
+      </table>
+      <p id="logs-empty" style="display:none; padding: 1rem; color: var(--muted);">Aucun log (activer Redis pour enregistrer les logs).</p>
+    </div>
+  </section>
+
+  <script>
+    const base = window.location.pathname.replace(/\/$/, "");
+    const functionsBase = base ? base + "/.netlify/functions" : "/.netlify/functions";
+
+    function show(el, visible) {
+      if (el) el.style.display = visible ? "" : "none";
+    }
+
+    async function loadStock() {
+      const loading = document.getElementById("stock-loading");
+      const errEl = document.getElementById("stock-error");
+      const table = document.getElementById("stock-table");
+      const body = document.getElementById("stock-body");
+      show(loading, true);
+      show(errEl, false);
+      show(table, false);
+      try {
+        const r = await fetch(functionsBase + "/stock-comparison");
+        const data = await r.json();
+        show(loading, false);
+        if (!r.ok) {
+          errEl.textContent = data.error || data.message || "Erreur " + r.status;
+          show(errEl, true);
+          return;
+        }
+        const comp = data.comparison || [];
+        body.innerHTML = comp.map(function (row) {
+          const matchClass = row.match ? "match-yes" : "match-no";
+          const matchText = row.match ? "Oui" : "Non";
+          return "<tr><td>" + escapeHtml(row.sku) + "</td><td>" + (row.byrd != null ? row.byrd : "—") + "</td><td>" + (row.shopify != null ? row.shopify : "—") + "</td><td class=\"" + matchClass + "\">" + matchText + "</td></tr>";
+        }).join("");
+        show(table, true);
+      } catch (e) {
+        show(loading, false);
+        errEl.textContent = e.message || "Erreur réseau";
+        show(errEl, true);
+      }
+    }
+
+    async function loadLogs() {
+      const loading = document.getElementById("logs-loading");
+      const errEl = document.getElementById("logs-error");
+      const table = document.getElementById("logs-table");
+      const body = document.getElementById("logs-body");
+      const empty = document.getElementById("logs-empty");
+      show(loading, true);
+      show(errEl, false);
+      show(table, false);
+      show(empty, false);
+      try {
+        const r = await fetch(functionsBase + "/logs?limit=100");
+        const data = await r.json();
+        show(loading, false);
+        if (!r.ok) {
+          errEl.textContent = data.error || "Erreur " + r.status;
+          show(errEl, true);
+          return;
+        }
+        const logs = data.logs || [];
+        if (logs.length === 0) {
+          show(empty, true);
+          return;
+        }
+        body.innerHTML = logs.map(function (log) {
+          const level = (log.level || "").toLowerCase();
+          const levelClass = level === "error" ? "level-error" : level === "warn" ? "level-warn" : "level-info";
+          const meta = log.event ? Object.keys(log).filter(function (k) { return !["level","event","timestamp"].includes(k); }).map(function (k) { return k + ": " + JSON.stringify(log[k]); }).join(" · ") : "";
+          return "<tr><td>" + escapeHtml(log.timestamp || "") + "</td><td class=\"" + levelClass + "\">" + escapeHtml(log.level || "") + "</td><td>" + escapeHtml(log.event || "") + "</td><td class=\"meta\" title=\"" + escapeHtml(meta) + "\">" + escapeHtml(meta) + "</td></tr>";
+        }).join("");
+        show(table, true);
+      } catch (e) {
+        show(loading, false);
+        errEl.textContent = e.message || "Erreur réseau";
+        show(errEl, true);
+      }
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return "";
+      const div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    document.getElementById("refresh-stock").addEventListener("click", loadStock);
+    document.getElementById("refresh-logs").addEventListener("click", loadLogs);
+    loadStock();
+    loadLogs();
+  </script>
+</body>
+</html>
