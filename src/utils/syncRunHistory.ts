@@ -3,6 +3,7 @@ import * as path from "path";
 import type { SyncTarget } from "../config";
 import type { StockSyncResult } from "../jobs/stockSync";
 import { logger } from "./logger";
+import { shouldUseNetlifyBlobs } from "./storageBackend";
 
 /** Plafond d’enregistrements persistés (cron ~144/jour/cible ; marge pour digest + manuels). */
 export const SYNC_RUN_HISTORY_CAP = 500;
@@ -95,8 +96,7 @@ export function buildStockOnlyRunRecord(
 }
 
 function useBlobStorage(): boolean {
-  if (process.env.SYNC_RUN_HISTORY_PATH) return false;
-  return process.env.NETLIFY === "true";
+  return shouldUseNetlifyBlobs("SYNC_RUN_HISTORY_PATH");
 }
 
 async function readRunsFromBlob(): Promise<SyncRunRecord[] | null> {

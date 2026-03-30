@@ -163,7 +163,7 @@ L’authentification Byrd se fait via **JWT** : le middleware appelle `POST /v2/
 
 | Variable                | Description                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------ |
-| `SYNC_RUN_HISTORY_PATH` | (Optionnel) Fichier JSON local pour l’**historique des runs** (onglet « Runs sync »). Si défini, ce fichier est utilisé même sur Netlify. Sinon : sur Netlify (`NETLIFY=true`), stockage **Netlify Blobs** ; en local hors Netlify, défaut `data/sync-runs.json`. |
+| `SYNC_RUN_HISTORY_PATH` | (Optionnel) Fichier JSON pour l’historique des runs. Si défini, utilisé partout. Sinon en **production** (runtime Lambda / fonctions Netlify) : **Netlify Blobs** ; avec `netlify dev` (`NETLIFY_DEV`) : fichier `data/sync-runs.json`. |
 
 L’historique est plafonné (`SYNC_RUN_HISTORY_CAP` dans `src/utils/syncRunHistory.ts`, actuellement 500 entrées). Si le digest Slack signale une **saturation**, les totaux de la veille peuvent être incomplets : augmenter la constante ou archiver ailleurs.
 
@@ -175,7 +175,7 @@ L’historique est plafonné (`SYNC_RUN_HISTORY_CAP` dans `src/utils/syncRunHist
 | `SLACK_PER_RUN_REPORTS` | `0` / `false` / `off` / `no` : pas de Slack **après chaque** `sync-uk` ou sync stock ; le **digest** peut rester actif. Ignoré si le master (notifications) est coupé. |
 | `SLACK_DAILY_DIGEST` | `0` : pas de **rapport journalier** (cron ni `daily-slack-digest-manual`). Ignoré si le master est coupé. |
 | `SLACK_WEBHOOK_URL` | URL Incoming Webhook ; sans elle, aucun envoi même si les flags sont activés. |
-| `SLACK_SETTINGS_PATH` | (Optionnel) Fichier JSON pour les **surcharges** définies dans le dashboard. Si défini, ce fichier est utilisé même sur Netlify. Sinon : sur Netlify (`NETLIFY=true`), stockage **Netlify Blobs** ; en local hors Netlify, défaut `data/slack-settings.json`. |
+| `SLACK_SETTINGS_PATH` | (Optionnel) Fichier JSON pour les surcharges dashboard. Sinon en **production** fonctions : **Netlify Blobs** ; en `netlify dev` : `data/slack-settings.json` (voir `src/utils/storageBackend.ts`). |
 
 **Interface dashboard** : onglet **Slack** → cocher « Contrôler depuis le dashboard », puis les trois options. **GET/PUT** `/.netlify/functions/slack-settings` (auth cookie identique au reste du dashboard). Tant que la priorité dashboard est **désactivée**, seuls `.env` / Netlify déterminent le comportement (comme avant).
 

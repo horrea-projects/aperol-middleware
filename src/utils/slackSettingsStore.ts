@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { logger } from "./logger";
+import { shouldUseNetlifyBlobs } from "./storageBackend";
 
 const BLOB_STORE = "aperol-slack-settings";
 const BLOB_KEY = "v1";
@@ -15,8 +16,7 @@ export interface SlackSettingsPersisted {
 }
 
 function useBlobStorage(): boolean {
-  if (process.env.SLACK_SETTINGS_PATH) return false;
-  return process.env.NETLIFY === "true";
+  return shouldUseNetlifyBlobs("SLACK_SETTINGS_PATH");
 }
 
 async function readFromBlob(): Promise<SlackSettingsPersisted | null> {
