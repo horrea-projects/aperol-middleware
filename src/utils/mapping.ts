@@ -1,3 +1,5 @@
+import { normalizeSku } from "./skuNormalize";
+
 export interface SkuInventoryMapping {
   sku: string;
   inventoryItemId: string;
@@ -6,7 +8,8 @@ export interface SkuInventoryMapping {
 export function buildSkuToInventoryItemIdMap(items: SkuInventoryMapping[]): Map<string, string> {
   const map = new Map<string, string>();
   for (const item of items) {
-    map.set(item.sku, item.inventoryItemId);
+    const k = normalizeSku(item.sku);
+    if (k) map.set(k, item.inventoryItemId);
   }
   return map;
 }

@@ -1,6 +1,16 @@
 import fetch from "cross-fetch";
 import { logger } from "./logger";
 
+/** Erreur HTTP avec code statut (pour éviter les retries inutiles sur 401/403). */
+export class HttpStatusError extends Error {
+  readonly statusCode: number;
+  constructor(statusCode: number, message: string) {
+    super(message);
+    this.name = "HttpStatusError";
+    this.statusCode = statusCode;
+  }
+}
+
 export interface HttpRequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH";
   headers?: Record<string, string>;
@@ -34,17 +44,30 @@ export async function httpRequest<T = any>(url: string, options: HttpRequestOpti
 
       if (!resp.ok) {
         const text = await resp.text();
-        throw new Error(`HTTP ${resp.status} - ${resp.statusText} - ${text}`);
+        throw new HttpStatusError(
+          resp.status,
+          `HTTP ${resp.status} - ${resp.statusText} - ${text}`
+        );
       }
 
       const contentType = resp.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
         return (await resp.json()) as T;
       }
-      // @ts-expect-error T peut être string ici
-      return (await resp.text()) as T;
+      return (await resp.text()) as unknown as T;
     } catch (err) {
       lastError = err;
+      if (
+        err instanceof HttpStatusError &&
+        (err.statusCode === 401 || err.statusCode === 403)
+      ) {
+        logger.warn("http_request_client_error_no_retry", {
+          url,
+          statusCode: err.statusCode,
+          error: String(err)
+        });
+        throw err;
+      }
       attempt++;
       logger.warn("http_request_failed", { url, attempt, error: String(err) });
       if (attempt >= retryCount) break;

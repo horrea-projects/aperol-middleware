@@ -1,39 +1,117 @@
-import { ShopifyService, type WmsStockItem } from "../services/shopifyService";
+import {
+  ShopifyService,
+  type InventoryAdjustInput,
+  type StockAdjustLine,
+} from "../services/shopifyService";
 import { WmsService } from "../services/wmsService";
 import { logger } from "../utils/logger";
 import { isByrdConfigured } from "../services/byrdClient";
+import {
+  groupShopifyLevelsByNormalizedSku,
+  mergeQuantitiesBySku,
+} from "../utils/skuNormalize";
 
-export async function runStockSync(): Promise<void> {
+export interface StockSyncResult {
+  processedSkus: number;
+  appliedItems: number;
+  userErrors: number;
+  skippedMissingItemId: number;
+  mode: "byrd" | "generic";
+  /** Détail par SKU (produit / variante) pour les ajustements de stock. */
+  lines: StockAdjustLine[];
+}
+
+export async function runStockSync(): Promise<StockSyncResult> {
   logger.info("stock_sync_started");
 
   const wms = new WmsService();
   const shopify = new ShopifyService();
 
-  const wmsItems: WmsStockItem[] = await wms.fetchStockForUk();
+  const wmsItems = await wms.fetchStockForUk();
   if (wmsItems.length === 0) {
     logger.info("stock_sync_completed", { processed: 0 });
-    return;
+    return {
+      processedSkus: 0,
+      appliedItems: 0,
+      userErrors: 0,
+      skippedMissingItemId: 0,
+      mode: isByrdConfigured() ? "byrd" : "generic",
+      lines: [],
+    };
   }
 
-  // Byrd renvoie des quantités absolues : on calcule le delta par rapport à Shopify pour éviter d’écraser.
-  let toApply: WmsStockItem[] = wmsItems;
+  const wmsMerged = mergeQuantitiesBySku(
+    wmsItems.map((i) => ({ sku: i.sku, quantity: i.quantity })),
+  );
+
+  const levels = await shopify.fetchInventoryLevelsForUkLocation();
+  const { quantities: shopifyQtyBySku, inventoryItemsBySku } =
+    groupShopifyLevelsByNormalizedSku(levels);
+
+  const toApply: InventoryAdjustInput[] = [];
+  const mode: "byrd" | "generic" = isByrdConfigured() ? "byrd" : "generic";
+
   if (isByrdConfigured()) {
-    const current = await shopify.fetchInventoryLevelsForUkLocation();
-    const currentMap = new Map(current.map((c) => [c.sku, c.quantity]));
-    toApply = wmsItems
-      .map((i) => ({ sku: i.sku, quantity: i.quantity - (currentMap.get(i.sku) ?? 0) }))
-      .filter((i) => i.quantity !== 0);
+    // Delta = total WMS − total Shopify pour le SKU. S’il existe plusieurs InventoryItem
+    // avec le même SKU à la location UK, un seul reçoit le delta (le premier) : le total
+    // disponible à l’entrepôt reste correct.
+    const needFallback: string[] = [];
+    for (const [sku, wmsQty] of wmsMerged) {
+      const shopQty = shopifyQtyBySku.get(sku) ?? 0;
+      const delta = wmsQty - shopQty;
+      if (delta === 0) continue;
+      const id = inventoryItemsBySku.get(sku)?.[0]?.inventoryItemId;
+      if (id) toApply.push({ sku, quantity: delta, inventoryItemId: id });
+      else needFallback.push(sku);
+    }
+    if (needFallback.length > 0) {
+      const fb = await shopify.fetchInventoryItemsBySkus(needFallback);
+      for (const sku of needFallback) {
+        const wmsQty = wmsMerged.get(sku)!;
+        const shopQty = shopifyQtyBySku.get(sku) ?? 0;
+        const delta = wmsQty - shopQty;
+        if (delta === 0) continue;
+        const iid = fb.get(sku);
+        if (iid) toApply.push({ sku, quantity: delta, inventoryItemId: iid });
+      }
+    }
     if (toApply.length === 0) {
       logger.info("stock_sync_completed", { processed: 0, reason: "no_delta" });
-      return;
+      return {
+        processedSkus: wmsMerged.size,
+        appliedItems: 0,
+        userErrors: 0,
+        skippedMissingItemId: 0,
+        mode,
+        lines: [],
+      };
+    }
+  } else {
+    const needFallback: string[] = [];
+    for (const [sku, quantity] of wmsMerged) {
+      const id = inventoryItemsBySku.get(sku)?.[0]?.inventoryItemId;
+      if (id) toApply.push({ sku, quantity, inventoryItemId: id });
+      else needFallback.push(sku);
+    }
+    if (needFallback.length > 0) {
+      const fb = await shopify.fetchInventoryItemsBySkus(needFallback);
+      for (const sku of needFallback) {
+        const qty = wmsMerged.get(sku)!;
+        const iid = fb.get(sku);
+        if (iid) toApply.push({ sku, quantity: qty, inventoryItemId: iid });
+      }
     }
   }
 
-  const skus = Array.from(new Set(toApply.map((i) => i.sku))).filter(Boolean);
-  const skuToInventoryItemId = await shopify.fetchInventoryItemsBySkus(skus);
+  const summary = await shopify.adjustInventoryLevels(toApply);
 
-  await shopify.adjustInventoryLevels(toApply, skuToInventoryItemId);
-
-  logger.info("stock_sync_completed", { processed: toApply.length });
+  logger.info("stock_sync_completed", { processed: toApply.length, summary });
+  return {
+    processedSkus: wmsMerged.size,
+    appliedItems: summary.adjusted,
+    userErrors: summary.userErrors,
+    skippedMissingItemId: summary.skippedMissingItemId,
+    mode,
+    lines: summary.lines,
+  };
 }
-

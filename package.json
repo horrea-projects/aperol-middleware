@@ -4,14 +4,21 @@
   "private": true,
   "scripts": {
     "build": "tsc",
+    "dev": "netlify dev",
     "netlify:build": "npm run build",
+    "shopify:auth-check": "node scripts/shopify_auth_check.mjs",
+    "shopify:get-admin-token": "node scripts/shopify_get_admin_access_token_dev_dashboard.mjs",
+    "shopify:get-admin-token:staging": "node scripts/shopify_get_admin_access_token_dev_dashboard_staging.mjs",
     "lint": "echo \"no linter configured\""
   },
   "dependencies": {
-    "cross-fetch": "^4.0.0"
+    "@netlify/blobs": "^10.7.4",
+    "cross-fetch": "^4.0.0",
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@netlify/functions": "^2.8.0",
+    "@types/node": "^25.5.0",
     "typescript": "^5.7.0"
   }
 }

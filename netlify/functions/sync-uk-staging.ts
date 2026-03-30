@@ -1,3 +1,3 @@
 import { createSyncUkHandler } from "../../src/handlers/syncUkNetlifyHandler";
 
-export const handler = createSyncUkHandler("prod");
+export const handler = createSyncUkHandler("staging");

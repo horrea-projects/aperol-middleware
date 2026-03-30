@@ -1,197 +1,2564 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Middleware UK — Logs & Stocks</title>
-  <style>
-    :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --border: #2d3a4d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --ok: #3fb950;
-      --warn: #d29922;
-      --err: #f85149;
-      --accent: #58a6ff;
-    }
-    * { box-sizing: border-box; }
-    body {
-      font-family: "SF Mono", "Consolas", "Ubuntu Mono", monospace;
-      background: var(--bg);
-      color: var(--text);
-      margin: 0;
-      padding: 1.5rem;
-      line-height: 1.5;
-    }
-    h1 { font-size: 1.25rem; margin: 0 0 1rem; color: var(--accent); }
-    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--muted); font-weight: 600; }
-    section { margin-bottom: 2rem; }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; }
-    tr:last-child td { border-bottom: none; }
-    .level-info { color: var(--ok); }
-    .level-warn { color: var(--warn); }
-    .level-error { color: var(--err); }
-    .match-yes { color: var(--ok); }
-    .match-no { color: var(--warn); }
-    .meta { font-size: 0.75rem; color: var(--muted); max-width: 20rem; overflow: hidden; text-overflow: ellipsis; }
-    .loading { color: var(--muted); }
-    .error-msg { color: var(--err); }
-    .refresh { margin-bottom: 0.5rem; }
-    .refresh button {
-      background: var(--border);
-      color: var(--text);
-      border: none;
-      padding: 0.4rem 0.8rem;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    .refresh button:hover { background: var(--accent); color: var(--bg); }
-    #logs-list, #stock-table { min-height: 2rem; }
-  </style>
-</head>
-<body>
-  <h1>Middleware UK — Logs & comparaison stocks</h1>
-
-  <section>
-    <h2>Comparaison des stocks (Byrd vs Shopify — location UK)</h2>
-    <div class="refresh"><button type="button" id="refresh-stock">Actualiser</button></div>
-    <div class="card">
-      <div id="stock-loading" class="loading">Chargement…</div>
-      <div id="stock-error" class="error-msg" style="display:none;"></div>
-      <table id="stock-table" style="display:none;">
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Byrd (WMS)</th>
-            <th>Shopify UK</th>
-            <th>Aligné</th>
-          </tr>
-        </thead>
-        <tbody id="stock-body"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
-    <h2>Derniers logs (sync)</h2>
-    <div class="refresh"><button type="button" id="refresh-logs">Actualiser</button></div>
-    <div class="card">
-      <div id="logs-loading" class="loading">Chargement…</div>
-      <div id="logs-error" class="error-msg" style="display:none;"></div>
-      <table id="logs-table" style="display:none;">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Niveau</th>
-            <th>Événement</th>
-            <th>Détails</th>
-          </tr>
-        </thead>
-        <tbody id="logs-body"></tbody>
-      </table>
-      <p id="logs-empty" style="display:none; padding: 1rem; color: var(--muted);">Aucun log (activer Redis pour enregistrer les logs).</p>
-    </div>
-  </section>
-
-  <script>
-    const base = window.location.pathname.replace(/\/$/, "");
-    const functionsBase = base ? base + "/.netlify/functions" : "/.netlify/functions";
-
-    function show(el, visible) {
-      if (el) el.style.display = visible ? "" : "none";
-    }
-
-    async function loadStock() {
-      const loading = document.getElementById("stock-loading");
-      const errEl = document.getElementById("stock-error");
-      const table = document.getElementById("stock-table");
-      const body = document.getElementById("stock-body");
-      show(loading, true);
-      show(errEl, false);
-      show(table, false);
-      try {
-        const r = await fetch(functionsBase + "/stock-comparison");
-        const data = await r.json();
-        show(loading, false);
-        if (!r.ok) {
-          errEl.textContent = data.error || data.message || "Erreur " + r.status;
-          show(errEl, true);
-          return;
-        }
-        const comp = data.comparison || [];
-        body.innerHTML = comp.map(function (row) {
-          const matchClass = row.match ? "match-yes" : "match-no";
-          const matchText = row.match ? "Oui" : "Non";
-          return "<tr><td>" + escapeHtml(row.sku) + "</td><td>" + (row.byrd != null ? row.byrd : "—") + "</td><td>" + (row.shopify != null ? row.shopify : "—") + "</td><td class=\"" + matchClass + "\">" + matchText + "</td></tr>";
-        }).join("");
-        show(table, true);
-      } catch (e) {
-        show(loading, false);
-        errEl.textContent = e.message || "Erreur réseau";
-        show(errEl, true);
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Middleware UK — Dashboard</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --surface: #1a2332;
+        --border: #2d3a4d;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --ok: #3fb950;
+        --warn: #d29922;
+        --err: #f85149;
+        --accent: #58a6ff;
+        --env-prod: #3fb950;
+        --env-staging: #a371f7;
+        --radius: 8px;
       }
-    }
-
-    async function loadLogs() {
-      const loading = document.getElementById("logs-loading");
-      const errEl = document.getElementById("logs-error");
-      const table = document.getElementById("logs-table");
-      const body = document.getElementById("logs-body");
-      const empty = document.getElementById("logs-empty");
-      show(loading, true);
-      show(errEl, false);
-      show(table, false);
-      show(empty, false);
-      try {
-        const r = await fetch(functionsBase + "/logs?limit=100");
-        const data = await r.json();
-        show(loading, false);
-        if (!r.ok) {
-          errEl.textContent = data.error || "Erreur " + r.status;
-          show(errEl, true);
-          return;
-        }
-        const logs = data.logs || [];
-        if (logs.length === 0) {
-          show(empty, true);
-          return;
-        }
-        body.innerHTML = logs.map(function (log) {
-          const level = (log.level || "").toLowerCase();
-          const levelClass = level === "error" ? "level-error" : level === "warn" ? "level-warn" : "level-info";
-          const meta = log.event ? Object.keys(log).filter(function (k) { return !["level","event","timestamp"].includes(k); }).map(function (k) { return k + ": " + JSON.stringify(log[k]); }).join(" · ") : "";
-          return "<tr><td>" + escapeHtml(log.timestamp || "") + "</td><td class=\"" + levelClass + "\">" + escapeHtml(log.level || "") + "</td><td>" + escapeHtml(log.event || "") + "</td><td class=\"meta\" title=\"" + escapeHtml(meta) + "\">" + escapeHtml(meta) + "</td></tr>";
-        }).join("");
-        show(table, true);
-      } catch (e) {
-        show(loading, false);
-        errEl.textContent = e.message || "Erreur réseau";
-        show(errEl, true);
+      * {
+        box-sizing: border-box;
       }
-    }
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 0 0 2rem;
+        line-height: 1.45;
+        font-size: 15px;
+      }
 
-    function escapeHtml(s) {
-      if (s == null) return "";
-      const div = document.createElement("div");
-      div.textContent = s;
-      return div.innerHTML;
-    }
+      /* —— En-tête —— */
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(15, 20, 25, 0.92);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+        padding: 0.75rem 1.25rem;
+      }
+      .site-header-inner {
+        max-width: 1400px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .brand-block h1 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+      }
+      .brand-block .product-name {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin: 0.15rem 0 0;
+        color: var(--text);
+        letter-spacing: -0.02em;
+      }
 
-    document.getElementById("refresh-stock").addEventListener("click", loadStock);
-    document.getElementById("refresh-logs").addEventListener("click", loadLogs);
-    loadStock();
-    loadLogs();
-  </script>
-</body>
+      .header-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .env-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+      }
+      .env-field label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+      }
+      .auto-sync-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+      }
+      .auto-sync-row input[type="number"] {
+        width: 4.5rem;
+        font: inherit;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.45rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+      }
+      .auto-sync-status {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .env-select {
+        min-width: min(100vw - 3rem, 22rem);
+        font: inherit;
+        font-size: 0.9rem;
+        padding: 0.5rem 2rem 0.5rem 0.65rem;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.65rem center;
+      }
+      .env-select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+      }
+
+      .page-wrap {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1.25rem 1.25rem 0;
+      }
+
+      .context-hero {
+        padding: 1.25rem 1.25rem;
+        border-radius: var(--radius);
+        margin-bottom: 1rem;
+        border: 1px solid var(--border);
+        background: linear-gradient(
+          135deg,
+          var(--surface) 0%,
+          rgba(26, 35, 50, 0.85) 100%
+        );
+      }
+      .context-hero.prod {
+        border-left: 5px solid var(--env-prod);
+      }
+      .context-hero.staging {
+        border-left: 5px solid var(--env-staging);
+      }
+      .context-hero .context-kicker {
+        margin: 0;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .context-hero .context-title-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.5rem 1rem;
+        margin: 0.35rem 0 0;
+      }
+      .context-hero .context-env-label {
+        font-size: 1.35rem;
+        font-weight: 700;
+      }
+      .context-hero.prod .context-env-label {
+        color: var(--env-prod);
+      }
+      .context-hero.staging .context-env-label {
+        color: var(--env-staging);
+      }
+      .context-hero .context-domain {
+        margin: 0.25rem 0 0;
+        font-size: 0.95rem;
+        color: var(--text);
+        font-family: ui-monospace, monospace;
+      }
+      .context-hero .context-domain.missing {
+        color: var(--warn);
+        font-style: italic;
+        font-family: inherit;
+      }
+      .context-hero .context-hint {
+        margin: 0.65rem 0 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+        max-width: 40rem;
+        line-height: 1.4;
+      }
+
+      .workspace {
+        margin-top: 0;
+      }
+      .refresh button {
+        background: var(--border);
+        color: var(--text);
+        border: none;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.8rem;
+      }
+      .refresh button:hover {
+        background: var(--accent);
+        color: var(--bg);
+      }
+      #slack-settings-panel .btn-secondary {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+      #slack-settings-panel .btn-secondary:hover {
+        color: var(--text);
+        border-color: var(--accent);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 0.35rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .tab-btn {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid transparent;
+        padding: 0.45rem 0.85rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+      }
+      .tab-btn:hover {
+        color: var(--text);
+        background: rgba(88, 166, 255, 0.08);
+      }
+      .tab-btn.active {
+        color: var(--accent);
+        border-color: var(--border);
+        background: var(--surface);
+      }
+
+      h2.panel-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem;
+        color: var(--text);
+      }
+      section.content-panel {
+        margin-bottom: 0.5rem;
+      }
+      .tab-section {
+        display: none;
+      }
+      .tab-section.active {
+        display: block;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+      th,
+      td {
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .match-yes {
+        color: var(--ok);
+      }
+      .match-no {
+        color: var(--warn);
+      }
+      .loading {
+        color: var(--muted);
+        padding: 1rem;
+      }
+      .error-msg {
+        color: var(--err);
+        padding: 0.75rem 1rem;
+      }
+      .refresh {
+        margin-bottom: 0.5rem;
+      }
+
+      /* —— Connexion dashboard —— */
+      .login-gate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(15, 20, 25, 0.97);
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      .login-gate.visible {
+        display: flex;
+      }
+      .auth-boot-panel .auth-boot-text {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      /* Pas d’aperçu du dashboard tant que l’accès n’est pas validé */
+      #app-shell {
+        visibility: hidden;
+      }
+      body.dash-app-visible #app-shell {
+        visibility: visible;
+      }
+      #overview-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        background: rgba(15, 20, 25, 0.97);
+        backdrop-filter: blur(10px);
+        padding: 1.5rem 1.25rem;
+        display: none;
+        overflow: auto;
+      }
+      #overview-overlay.visible {
+        display: block;
+      }
+      .overview-wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      .overview-title {
+        margin: 0 0 0.75rem;
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+      .overview-subtitle {
+        color: var(--muted);
+        margin: 0 0 1rem;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        max-width: 60rem;
+      }
+      .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+      }
+      .overview-env-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .overview-env-card.prod {
+        border-left: 5px solid var(--env-prod);
+      }
+      .overview-env-card.staging {
+        border-left: 5px solid var(--env-staging);
+      }
+      .overview-env-card .inner {
+        padding: 0.95rem;
+      }
+      .overview-env-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.65rem;
+      }
+      .overview-env-name {
+        font-weight: 800;
+      }
+      .overview-badge {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .overview-badge.ok {
+        color: var(--ok);
+        border-color: rgba(63, 185, 80, 0.5);
+      }
+      .overview-badge.warn {
+        color: var(--warn);
+        border-color: rgba(210, 153, 34, 0.4);
+      }
+      .overview-badge.err {
+        color: var(--err);
+        border-color: rgba(248, 81, 73, 0.4);
+      }
+      .overview-row {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin: 0.25rem 0;
+      }
+      .overview-actions {
+        margin-top: 0.8rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .overview-actions button {
+        background: var(--border);
+        color: var(--text);
+        border: none;
+        padding: 0.5rem 0.8rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .overview-actions button:hover {
+        background: var(--accent);
+        color: var(--bg);
+      }
+      @media (max-width: 720px) {
+        .overview-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .login-card {
+        width: 100%;
+        max-width: 400px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+      }
+      .login-card h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+      .login-card p {
+        margin: 0 0 1rem;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .login-card input[type="password"] {
+        width: 100%;
+        padding: 0.6rem 0.75rem;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font: inherit;
+        margin-bottom: 0.75rem;
+      }
+      .login-card button[type="submit"] {
+        width: 100%;
+        padding: 0.6rem;
+        border: none;
+        border-radius: 6px;
+        background: var(--accent);
+        color: var(--bg);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .login-card button[type="submit"]:hover {
+        filter: brightness(1.1);
+      }
+      .login-err {
+        color: var(--err);
+        font-size: 0.85rem;
+        margin-top: 0.75rem;
+        min-height: 1.25rem;
+      }
+
+      .sync-legend {
+        font-size: 0.72rem;
+        color: var(--muted);
+        max-width: 22rem;
+        margin-top: 0.35rem;
+        line-height: 1.35;
+      }
+      .api-banner {
+        display: none;
+        margin-bottom: 0.75rem;
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius);
+        border: 1px solid rgba(248, 81, 73, 0.4);
+        background: rgba(248, 81, 73, 0.08);
+        color: var(--err);
+        font-size: 0.85rem;
+      }
+      .api-banner.visible {
+        display: block;
+      }
+      .header-logout {
+        font-size: 0.9rem;
+        color: var(--muted);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 0.65rem;
+        cursor: pointer;
+        min-height: 2.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .header-logout:hover {
+        color: var(--text);
+        border-color: var(--muted);
+      }
+      /* Évite que le shell dashboard intercepte clics / focus quand la modale login est affichée */
+      #app-shell.app-logged-out {
+        pointer-events: none;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        border: 0;
+      }
+      .sync-run-pre {
+        margin: 0;
+        max-height: 320px;
+        overflow: auto;
+        font-size: 0.78rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.25);
+        padding: 0.6rem 0.75rem;
+        border-radius: 6px;
+      }
+      .sync-run-detail td {
+        border-top: none;
+        padding-top: 0;
+        padding-bottom: 0.75rem;
+      }
+      .sync-run-detail-heading {
+        margin: 0.75rem 0 0.4rem;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: var(--text);
+      }
+      .sync-run-detail-heading:first-child {
+        margin-top: 0;
+      }
+      .sync-run-lines-table {
+        width: 100%;
+        font-size: 0.78rem;
+        margin-bottom: 0.5rem;
+      }
+      .sync-run-lines-table th,
+      .sync-run-lines-table td {
+        padding: 0.35rem 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="login-gate"
+      class="login-gate visible login-gate--boot"
+      role="dialog"
+      aria-labelledby="login-title"
+      aria-busy="true"
+    >
+      <div id="auth-boot-panel" class="login-card auth-boot-panel">
+        <p id="auth-boot-text" class="auth-boot-text">
+          Vérification de l’accès…
+        </p>
+      </div>
+      <form class="login-card" id="login-form" hidden aria-hidden="true">
+        <h2 id="login-title">Accès dashboard</h2>
+        <p>
+          Session par <strong>cookie HttpOnly</strong> après saisie du mot de
+          passe (<code>DASHBOARD_PASSWORD</code> sur Netlify).
+        </p>
+        <label for="login-password" class="visually-hidden">Mot de passe</label>
+        <input
+          type="password"
+          id="login-password"
+          name="password"
+          autocomplete="current-password"
+          required
+          placeholder="Mot de passe"
+        />
+        <button type="submit">Se connecter</button>
+        <p class="login-err" id="login-err" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div id="app-shell" class="app-logged-out">
+      <header class="site-header" aria-label="En-tête">
+        <div class="site-header-inner">
+          <div class="brand-block">
+            <h1>Middleware UK</h1>
+            <p class="product-name" id="header-shop-line">Production · …</p>
+          </div>
+          <div class="header-controls">
+            <div class="env-field">
+              <select
+                id="env-select"
+                class="env-select"
+                aria-label="Environnement Shopify"
+              >
+                <option value="prod">Production — …</option>
+                <option value="staging">Staging — …</option>
+              </select>
+            </div>
+            <button type="button" class="header-logout" id="btn-logout">
+              Déconnexion
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="page-wrap">
+        <div id="overview-overlay" aria-live="polite" aria-busy="true">
+          <div class="overview-wrap">
+            <h1 class="overview-title">Aperçu global</h1>
+            <p class="overview-subtitle">
+              Statuts de connexion et dernières synchronisations pour
+              <strong>Production</strong> et <strong>Staging</strong>. Choisis
+              l’environnement ci-dessous pour entrer dans le dashboard.
+            </p>
+            <div class="overview-grid">
+              <div class="overview-env-card prod">
+                <div class="inner">
+                  <div class="overview-env-head">
+                    <div class="overview-env-name">Production</div>
+                    <div class="overview-badge" id="overview-prod-conn">…</div>
+                  </div>
+                  <div class="overview-row" id="overview-prod-shopify">
+                    Shopify: …
+                  </div>
+                  <div class="overview-row" id="overview-prod-sync-stock">
+                    Stock: …
+                  </div>
+                  <div class="overview-row" id="overview-prod-sync-lastany">
+                    Dernière sync stock: …
+                  </div>
+                  <div class="overview-row" id="overview-prod-last-error">
+                    Dernière erreur: …
+                  </div>
+                  <div class="overview-actions">
+                    <button type="button" id="open-env-prod">
+                      Ouvrir Production
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="overview-env-card staging">
+                <div class="inner">
+                  <div class="overview-env-head">
+                    <div class="overview-env-name">Staging</div>
+                    <div class="overview-badge" id="overview-staging-conn">
+                      …
+                    </div>
+                  </div>
+                  <div class="overview-row" id="overview-staging-shopify">
+                    Shopify: …
+                  </div>
+                  <div class="overview-row" id="overview-staging-sync-stock">
+                    Stock: …
+                  </div>
+                  <div class="overview-row" id="overview-staging-sync-lastany">
+                    Dernière sync stock: …
+                  </div>
+                  <div class="overview-row" id="overview-staging-last-error">
+                    Dernière erreur: …
+                  </div>
+                  <div class="overview-actions">
+                    <button type="button" id="open-env-staging">
+                      Ouvrir Staging
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="context-hero prod" id="context-hero">
+          <p class="context-kicker">Boutique Shopify consultée</p>
+          <div class="context-title-row">
+            <span class="context-env-label" id="context-env-label"
+              >Production</span
+            >
+          </div>
+          <p class="context-domain" id="context-domain">…</p>
+          <p class="context-hint" id="context-hint">
+            Stocks et historique des runs ci‑dessous correspondent à cet
+            environnement uniquement (tokens API distincts côté Netlify pour la
+            prod et le staging). La synchronisation automatique est assurée par
+            les crons Netlify (<code>sync-uk</code> /
+            <code>sync-uk-staging</code>).
+          </p>
+        </div>
+
+        <div class="workspace">
+          <div id="api-banner" class="api-banner" role="alert"></div>
+
+          <div class="tabs" role="tablist">
+            <button
+              class="tab-btn active"
+              id="tab-stock"
+              type="button"
+              role="tab"
+            >
+              Stocks
+            </button>
+            <button class="tab-btn" id="tab-sync-runs" type="button" role="tab">
+              Runs sync
+            </button>
+            <button class="tab-btn" id="tab-slack" type="button" role="tab">
+              Slack
+            </button>
+          </div>
+
+          <section id="section-stock" class="tab-section content-panel active">
+            <h2 class="panel-title">
+              Comparaison des stocks (Byrd vs Shopify — location UK)
+            </h2>
+            <div
+              class="refresh"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+              "
+            >
+              <button type="button" id="refresh-stock">Actualiser</button>
+              <button type="button" id="sync-stock-now">
+                Sync stock maintenant
+              </button>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 0.5rem;
+                  flex-wrap: wrap;
+                  max-width: 100%;
+                  justify-content: flex-start;
+                  flex: 1 1 auto;
+                "
+              >
+                <input
+                  id="stock-sku-test"
+                  placeholder="SKU (test)"
+                  style="
+                    font: inherit;
+                    padding: 0.35rem 0.6rem;
+                    border-radius: 6px;
+                    border: 1px solid var(--border);
+                    background: var(--surface);
+                    color: var(--text);
+                    flex: 1 1 170px;
+                    width: auto;
+                    min-width: 0;
+                    max-width: 100%;
+                  "
+                />
+                <label
+                  style="
+                    font-size: 0.85rem;
+                    color: var(--muted);
+                    display: flex;
+                    align-items: center;
+                    gap: 0.4rem;
+                    white-space: nowrap;
+                    flex: 0 0 auto;
+                  "
+                >
+                  <input type="checkbox" id="stock-sku-dry-run" checked />
+                  Dry-run
+                </label>
+                <button
+                  type="button"
+                  id="sync-stock-sku-test-now"
+                  style="flex: 0 0 auto"
+                >
+                  Tester SKU
+                </button>
+              </div>
+            </div>
+            <div
+              id="auto-sync-stock-tabs"
+              style="
+                margin-top: 0.55rem;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.55rem;
+                align-items: flex-start;
+              "
+            >
+              <div
+                id="auto-sync-stock-tabs-prod"
+                style="display: none; flex: 1 1 520px"
+              >
+                <div
+                  style="
+                    font-size: 0.8rem;
+                    color: var(--muted);
+                    margin-bottom: 0.35rem;
+                  "
+                >
+                  Auto-sync Production — Stock
+                </div>
+                <div class="auto-sync-row" style="margin-bottom: 0.35rem">
+                  <label
+                    style="
+                      font-size: 0.85rem;
+                      color: var(--muted);
+                      display: flex;
+                      align-items: center;
+                      gap: 0.35rem;
+                      white-space: nowrap;
+                    "
+                  >
+                    <input type="checkbox" id="auto-sync-prod-stock-enabled" />
+                    Actif
+                  </label>
+                  <input
+                    type="number"
+                    id="auto-sync-prod-stock-minutes"
+                    min="1"
+                    step="1"
+                    value="10"
+                  />
+                  <span style="font-size: 0.8rem; color: var(--muted)"
+                    >min</span
+                  >
+                  <button
+                    type="button"
+                    id="auto-sync-prod-stock-run-now"
+                    style="
+                      background: var(--border);
+                      color: var(--text);
+                      border: none;
+                      border-radius: 6px;
+                      padding: 0.3rem 0.55rem;
+                      cursor: pointer;
+                    "
+                  >
+                    Run
+                  </button>
+                </div>
+                <div class="auto-sync-status" id="auto-sync-prod-stock-status">
+                  Auto-sync prod stock inactif
+                </div>
+              </div>
+              <div
+                id="auto-sync-stock-tabs-staging"
+                style="display: none; flex: 1 1 520px"
+              >
+                <div
+                  style="
+                    font-size: 0.8rem;
+                    color: var(--muted);
+                    margin-bottom: 0.35rem;
+                  "
+                >
+                  Auto-sync Staging — Stock
+                </div>
+                <div class="auto-sync-row" style="margin-bottom: 0.35rem">
+                  <label
+                    style="
+                      font-size: 0.85rem;
+                      color: var(--muted);
+                      display: flex;
+                      align-items: center;
+                      gap: 0.35rem;
+                      white-space: nowrap;
+                    "
+                  >
+                    <input
+                      type="checkbox"
+                      id="auto-sync-staging-stock-enabled"
+                    />
+                    Actif
+                  </label>
+                  <input
+                    type="number"
+                    id="auto-sync-staging-stock-minutes"
+                    min="1"
+                    step="1"
+                    value="10"
+                  />
+                  <span style="font-size: 0.8rem; color: var(--muted)"
+                    >min</span
+                  >
+                  <button
+                    type="button"
+                    id="auto-sync-staging-stock-run-now"
+                    style="
+                      background: var(--border);
+                      color: var(--text);
+                      border: none;
+                      border-radius: 6px;
+                      padding: 0.3rem 0.55rem;
+                      cursor: pointer;
+                    "
+                  >
+                    Run
+                  </button>
+                </div>
+                <div
+                  class="auto-sync-status"
+                  id="auto-sync-staging-stock-status"
+                >
+                  Auto-sync staging stock inactif
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div id="stock-loading" class="loading">Chargement…</div>
+              <div
+                id="stock-error"
+                class="error-msg"
+                style="display: none"
+              ></div>
+              <div
+                id="stock-summary"
+                style="
+                  display: none;
+                  font-size: 0.9rem;
+                  color: var(--muted);
+                  margin: 0 0 0.75rem;
+                  line-height: 1.45;
+                "
+              ></div>
+              <div
+                id="stock-sku-test-result"
+                style="
+                  display: none;
+                  margin: 0.75rem 0;
+                  padding: 0.6rem 0.75rem;
+                  border: 1px solid var(--border);
+                  border-radius: 8px;
+                "
+              ></div>
+              <table id="stock-table" style="display: none">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th
+                      title="D’après l’API Admin Shopify : produit standard, bundle (offre avec composants), ou composant utilisé dans un bundle parent."
+                    >
+                      Type
+                    </th>
+                    <th>Byrd (WMS)</th>
+                    <th
+                      id="stock-shopify-location-header"
+                      title="Quantité « disponible » à la vente (comme la sync). Peut être négative si le stock engagé (commandes) dépasse le physique ; dans ce cas le nombre (phys.) est le « En stock » de l’admin."
+                    >
+                      Shopify UK
+                    </th>
+                    <th
+                      title="V = ID variante (souvent visible dans l’URL ou la fiche produit admin). Inv = ID article d’inventaire (API Admin — différent de la variante)."
+                    >
+                      Var. / Inv.
+                    </th>
+                    <th
+                      title="Oui si Byrd = disponible Shopify (vente), pas le stock physique seul."
+                    >
+                      Aligné
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="stock-body"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="section-sync-runs" class="tab-section content-panel">
+            <h2 class="panel-title">Historique des runs (résumé)</h2>
+            <p
+              style="
+                font-size: 0.9rem;
+                color: var(--muted);
+                margin: 0 0 0.75rem;
+              "
+            >
+              Par exécution : date, type, <strong>succès / échecs</strong> stock
+              (compteurs du job). Déplier un run pour le
+              <strong>détail par SKU</strong> puis le JSON complet ; vous pouvez
+              supprimer une entrée.
+            </p>
+            <div class="refresh">
+              <button type="button" id="refresh-sync-runs">Actualiser</button>
+            </div>
+            <div class="card">
+              <div id="sync-runs-loading" class="loading">Chargement…</div>
+              <div
+                id="sync-runs-error"
+                class="error-msg"
+                style="display: none"
+              ></div>
+              <table id="sync-runs-table" style="display: none">
+                <thead>
+                  <tr>
+                    <th>Date (UTC)</th>
+                    <th>Type</th>
+                    <th>Stock (✓ / ✗)</th>
+                    <th>Total ✓ / ✗</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="sync-runs-body"></tbody>
+              </table>
+              <p
+                id="sync-runs-empty"
+                style="display: none; padding: 1rem; color: var(--muted)"
+              >
+                Aucun run enregistré pour cet environnement. Les crons
+                <code>sync-uk</code> et les sync manuelles (stock) alimentent
+                cet historique.
+              </p>
+            </div>
+          </section>
+
+          <section id="section-slack" class="tab-section content-panel">
+            <h2 class="panel-title">Notifications Slack</h2>
+            <p
+              style="
+                font-size: 0.9rem;
+                color: var(--muted);
+                margin: 0 0 0.75rem;
+              "
+            >
+              Sans cocher l’option ci‑dessous, les envois suivent uniquement
+              <strong>.env</strong> / <strong>Netlify</strong>
+              (<code>SLACK_NOTIFICATIONS</code>, etc.). Avec le tableau de bord, les
+              réglages sont stockés sur l’instance (Blobs Netlify ou
+              <code>data/slack-settings.json</code> en local) et s’appliquent sans
+              redéploiement.
+            </p>
+            <div id="slack-settings-loading" class="loading">Chargement…</div>
+            <div
+              id="slack-settings-error"
+              class="error-msg"
+              style="display: none; margin-bottom: 0.75rem"
+            ></div>
+            <div id="slack-settings-panel" class="card" style="display: none">
+              <label
+                class="slack-master-label"
+                style="
+                  display: flex;
+                  align-items: flex-start;
+                  gap: 0.5rem;
+                  margin-bottom: 1rem;
+                  cursor: pointer;
+                "
+              >
+                <input
+                  type="checkbox"
+                  id="slack-overrides-active"
+                  style="margin-top: 0.2rem"
+                />
+                <span
+                  ><strong>Contrôler depuis le dashboard</strong> (priorité sur les
+                  variables d’environnement pour ce site)</span
+                >
+              </label>
+              <div id="slack-toggles" style="display: flex; flex-direction: column; gap: 0.65rem">
+                <label class="slack-row" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
+                  <input type="checkbox" id="slack-notify-master" />
+                  <span>Notifications Slack actives</span
+                  ><span
+                    class="slack-hint"
+                    style="color: var(--muted); font-size: 0.82rem"
+                    >(master — coupe tout si décoché)</span
+                  >
+                </label>
+                <label class="slack-row" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
+                  <input type="checkbox" id="slack-per-run" />
+                  <span>Message après chaque sync</span>
+                  <span class="slack-hint" style="color: var(--muted); font-size: 0.82rem"
+                    >(sync-uk / sync stock)</span
+                  >
+                </label>
+                <label class="slack-row" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer">
+                  <input type="checkbox" id="slack-daily-digest" />
+                  <span>Rapport quotidien</span>
+                  <span class="slack-hint" style="color: var(--muted); font-size: 0.82rem"
+                    >(cron + fonction manuelle)</span
+                  >
+                </label>
+              </div>
+              <p style="margin: 1rem 0 0.35rem; font-size: 0.88rem">
+                Webhook configuré :
+                <strong id="slack-webhook-status">—</strong>
+              </p>
+              <p
+                id="slack-effective-line"
+                style="
+                  font-size: 0.88rem;
+                  color: var(--muted);
+                  margin: 0 0 1rem;
+                "
+              >
+                —
+              </p>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem">
+                <button type="button" id="slack-settings-save">
+                  Enregistrer
+                </button>
+                <button type="button" id="slack-settings-reset" class="btn-secondary">
+                  Suivre uniquement .env / Netlify
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Toujours la racine du site : sur Netlify les fonctions sont à `/.netlify/functions`,
+      // jamais sous `/index.html/` ni un sous-chemin (sinon 404 → écran login masqué par erreur).
+      const functionsBase = "/.netlify/functions";
+      /** Ouvre l’UI avec ?dashdebug=1 pour tracer les réponses dans la console du navigateur. */
+      var DASH_DEBUG = /[?&]dashdebug=1(?:&|$)/.test(
+        window.location.search || "",
+      );
+      function dashDbg() {
+        if (DASH_DEBUG && typeof console !== "undefined" && console.log) {
+          console.log.apply(console, arguments);
+        }
+      }
+
+      /**
+       * Avec ?dashdebug=1 : indique si DASHBOARD_PASSWORD est défini côté serveur.
+       * Si authRequired=false, le « logout » ne peut pas vraiment fermer une session (pas d’auth).
+       */
+      async function dashLogAuthDebug(label) {
+        if (!DASH_DEBUG) return;
+        try {
+          var r = await fetch(functionsBase + "/dashboard-auth-info", {
+            cache: "no-store",
+          });
+          var j = await r.json().catch(function () {
+            return {};
+          });
+          dashDbg(
+            "[dash-debug]",
+            label,
+            "authRequired=",
+            j.authRequired,
+            j.authRequired === false
+              ? "→ pas de DASHBOARD_PASSWORD côté serveur : pas de vraie session / déconnexion"
+              : "",
+          );
+        } catch (e) {
+          dashDbg("[dash-debug]", label, "dashboard-auth-info échoué", e);
+        }
+      }
+
+      let currentTarget = "prod";
+      /** Derniers runs chargés (index aligné sur les lignes du tableau). */
+      var lastSyncRuns = [];
+      const autoSyncTimers = {};
+      const autoSyncRunning = {};
+      const AUTO_SYNC_KEYS = ["prod-stock", "staging-stock"];
+
+      function apiFetch(url, init) {
+        init = init || {};
+        if (init.cache === undefined) init.cache = "no-store";
+        if (init.credentials === undefined) init.credentials = "same-origin";
+        if (!init.headers) init.headers = {};
+        return fetch(url, init).then(function (r) {
+          dashDbg("[dashboard fetch]", init.method || "GET", r.status, url);
+          if (r.status === 401) {
+            setLoginGateVisible(true);
+          }
+          return r;
+        });
+      }
+
+      function setLoginGateVisible(show) {
+        var g = document.getElementById("login-gate");
+        var app = document.getElementById("app-shell");
+        var boot = document.getElementById("auth-boot-panel");
+        var form = document.getElementById("login-form");
+        if (g) {
+          if (show) {
+            g.classList.add("visible");
+            g.classList.remove("login-gate--boot");
+            g.setAttribute("aria-busy", "false");
+            if (boot) {
+              boot.hidden = true;
+              boot.setAttribute("aria-hidden", "true");
+            }
+            if (form) {
+              form.hidden = false;
+              form.removeAttribute("aria-hidden");
+            }
+          } else {
+            g.classList.remove("visible");
+            g.classList.remove("login-gate--boot");
+            g.setAttribute("aria-busy", "false");
+            if (boot) {
+              boot.hidden = true;
+              boot.setAttribute("aria-hidden", "true");
+            }
+            if (form) {
+              form.hidden = true;
+              form.setAttribute("aria-hidden", "true");
+            }
+          }
+        }
+        if (document.body) {
+          if (show) document.body.classList.remove("dash-app-visible");
+          else document.body.classList.add("dash-app-visible");
+        }
+        if (app) app.classList.toggle("app-logged-out", show);
+      }
+
+      function setApiBanner(text) {
+        var b = document.getElementById("api-banner");
+        if (!b) return;
+        if (text) {
+          b.textContent = text;
+          b.classList.add("visible");
+        } else {
+          b.textContent = "";
+          b.classList.remove("visible");
+        }
+      }
+
+      function getAutoSyncConfig(key) {
+        var enabled =
+          localStorage.getItem("aperol:autoSync:" + key + ":enabled") === "1";
+        var minutesRaw = localStorage.getItem(
+          "aperol:autoSync:" + key + ":minutes",
+        );
+        var minutes = Number(minutesRaw || "10");
+        if (!Number.isFinite(minutes) || minutes < 1) minutes = 10;
+        return { enabled: enabled, minutes: minutes };
+      }
+
+      function setAutoSyncStatusForEnv(target, text) {
+        var el = document.getElementById("auto-sync-" + target + "-status");
+        if (el) el.textContent = text;
+      }
+
+      function setAutoSyncStatusForKey(key, text) {
+        var el = document.getElementById("auto-sync-" + key + "-status");
+        if (el) el.textContent = text;
+      }
+
+      async function runSyncCall(target) {
+        var url =
+          functionsBase +
+          "/sync-uk-stock-now?target=" +
+          encodeURIComponent(target);
+        var r = await apiFetch(url, { method: "POST", cache: "no-store" });
+        if (!r.ok)
+          throw new Error("HTTP " + r.status + " (" + target + " stock)");
+        return true;
+      }
+
+      async function runAutoSyncCycleForKey(key) {
+        if (autoSyncRunning[key]) return;
+        var isLoggedIn =
+          document.body && document.body.classList.contains("dash-app-visible");
+        if (!isLoggedIn) return;
+        autoSyncRunning[key] = true;
+        var parts = key.split("-");
+        var target = parts[0];
+        try {
+          await runSyncCall(target);
+          setAutoSyncStatusForEnv(
+            target,
+            "Dernier auto-sync stock: " + new Date().toISOString(),
+          );
+          setAutoSyncStatusForKey(
+            key,
+            "Dernier auto-sync stock: " + new Date().toISOString(),
+          );
+          // Si overlay visible, on rafraîchit juste l’aperçu des statuts.
+          var ov = document.getElementById("overview-overlay");
+          if (ov && ov.classList.contains("visible")) {
+            await loadOverviewAndShowLanding();
+          }
+        } catch (e) {
+          setAutoSyncStatusForEnv(
+            target,
+            "Auto-sync erreur (stock): " +
+              (e && e.message ? e.message : "échec"),
+          );
+          setAutoSyncStatusForKey(
+            key,
+            "Auto-sync erreur (stock): " +
+              (e && e.message ? e.message : "échec"),
+          );
+        } finally {
+          autoSyncRunning[key] = false;
+        }
+      }
+
+      function clearAutoSyncTimer(key) {
+        if (autoSyncTimers[key]) {
+          clearInterval(autoSyncTimers[key]);
+          delete autoSyncTimers[key];
+        }
+      }
+
+      function applyAutoSyncConfigForKey(key) {
+        var cfg = getAutoSyncConfig(key);
+        var enabledEl = document.getElementById(
+          "auto-sync-" + key + "-enabled",
+        );
+        var minutesEl = document.getElementById(
+          "auto-sync-" + key + "-minutes",
+        );
+        if (enabledEl) enabledEl.checked = cfg.enabled;
+        if (minutesEl) minutesEl.value = String(cfg.minutes);
+
+        clearAutoSyncTimer(key);
+        if (!cfg.enabled) {
+          var t = key.split("-")[0];
+          setAutoSyncStatusForEnv(
+            t,
+            "Auto-sync " + t + " partiellement/inactif",
+          );
+          setAutoSyncStatusForKey(key, "Auto-sync " + key + " inactif");
+          return;
+        }
+
+        var everyMs = cfg.minutes * 60 * 1000;
+        autoSyncTimers[key] = setInterval(function () {
+          void runAutoSyncCycleForKey(key);
+        }, everyMs);
+        var t2 = key.split("-")[0];
+        setAutoSyncStatusForEnv(
+          t2,
+          "Auto-sync " + t2 + " actif (une ou plusieurs tâches)",
+        );
+        setAutoSyncStatusForKey(
+          key,
+          "Auto-sync " + key + " actif toutes les " + cfg.minutes + " min",
+        );
+      }
+
+      function applyAllAutoSyncConfigs() {
+        AUTO_SYNC_KEYS.forEach(function (k) {
+          applyAutoSyncConfigForKey(k);
+        });
+      }
+
+      var siteMeta = {
+        prod: { label: "Production", shopDomain: null },
+        staging: { label: "Staging", shopDomain: null },
+      };
+
+      function refreshEnvSelectLabels() {
+        var sel = document.getElementById("env-select");
+        if (!sel) return;
+        var dProd = siteMeta.prod.shopDomain || "non configuré";
+        var dSt = siteMeta.staging.shopDomain || "non configuré";
+        sel.options[0].textContent = "Production — " + dProd;
+        sel.options[1].textContent = "Staging — " + dSt;
+        sel.value = currentTarget;
+      }
+
+      function applyContextVisuals() {
+        var isProd = currentTarget === "prod";
+        var meta = isProd ? siteMeta.prod : siteMeta.staging;
+        var domain = meta.shopDomain;
+        var label = meta.label || (isProd ? "Production" : "Staging");
+
+        document.getElementById("header-shop-line").textContent =
+          label + " · " + (domain || "domaine non configuré");
+
+        document.getElementById("context-env-label").textContent = label;
+        var domEl = document.getElementById("context-domain");
+        var hero = document.getElementById("context-hero");
+        hero.classList.remove("prod", "staging");
+        hero.classList.add(isProd ? "prod" : "staging");
+
+        if (domain) {
+          domEl.textContent = domain;
+          domEl.classList.remove("missing");
+        } else {
+          domEl.textContent =
+            "Domaine boutique non renseigné côté serveur pour cet environnement.";
+          domEl.classList.add("missing");
+        }
+
+        // Met à jour l'affichage des contrôles auto-sync dans les onglets
+        var showProd = isProd;
+        var stockProd = document.getElementById("auto-sync-stock-tabs-prod");
+        var stockStg = document.getElementById("auto-sync-stock-tabs-staging");
+        if (stockProd) stockProd.style.display = showProd ? "block" : "none";
+        if (stockStg) stockStg.style.display = showProd ? "none" : "block";
+      }
+
+      function showOverviewOverlay() {
+        var ov = document.getElementById("overview-overlay");
+        if (!ov) return;
+        ov.classList.add("visible");
+        ov.setAttribute("aria-busy", "true");
+      }
+
+      function hideOverviewOverlay() {
+        var ov = document.getElementById("overview-overlay");
+        if (!ov) return;
+        ov.classList.remove("visible");
+        ov.setAttribute("aria-busy", "false");
+      }
+
+      function setConnBadge(el, status) {
+        if (!el) return;
+        el.classList.remove("ok", "warn", "err");
+        if (status === "ok") el.classList.add("ok");
+        else if (status === "warn") el.classList.add("warn");
+        else if (status === "err") el.classList.add("err");
+        el.textContent =
+          status === "ok" ? "OK" : status === "warn" ? "PARTIEL" : "ERREUR";
+      }
+
+      function safeText(s) {
+        return s == null ? "—" : String(s);
+      }
+
+      async function loadOverviewAndShowLanding() {
+        showOverviewOverlay();
+        try {
+          var r = await apiFetch(functionsBase + "/dashboard-overview", {
+            method: "GET",
+            cache: "no-store",
+          });
+          if (r.status === 401) {
+            setLoginGateVisible(true);
+            hideOverviewOverlay();
+            return;
+          }
+          var data = await r.json().catch(function () {
+            return {};
+          });
+          if (!r.ok) {
+            setApiBanner("Aperçu indisponible (HTTP " + r.status + ").");
+            return;
+          }
+
+          var prod = data.prod || {};
+          var stg = data.staging || {};
+
+          // --- Production ---
+          var prodConn = prod.connection || {};
+          var prodBadge = document.getElementById("overview-prod-conn");
+          var prodStatus =
+            prodConn.shopify && prodConn.shopify.ok
+              ? prodConn.byrdConfigured || prodConn.wmsConfigured
+                ? "ok"
+                : "warn"
+              : "err";
+          setConnBadge(prodBadge, prodStatus);
+          document.getElementById("overview-prod-shopify").textContent =
+            "Shopify: " +
+            (prodConn.shopify && prodConn.shopify.ok
+              ? "OK" +
+                (prodConn.shopify.locationName
+                  ? " — " + prodConn.shopify.locationName
+                  : "")
+              : safeText(prodConn.shopify && prodConn.shopify.message));
+          document.getElementById("overview-prod-sync-stock").textContent =
+            "Stock: " +
+            (prod.sync && prod.sync.lastStockSync && prod.sync.lastStockSync.at
+              ? "Dernière sync " +
+                prod.sync.lastStockSync.at +
+                " (" +
+                safeText(prod.sync.lastStockSync.processed) +
+                " traités)"
+              : "—");
+          var prodStockAt =
+            prod.sync && prod.sync.lastStockSync
+              ? prod.sync.lastStockSync.at
+              : null;
+          document.getElementById("overview-prod-sync-lastany").textContent =
+            prodStockAt ? "Dernière sync stock: " + prodStockAt : "—";
+          document.getElementById("overview-prod-last-error").textContent =
+            "Dernière erreur: " +
+            (prod.sync && prod.sync.lastError && prod.sync.lastError.at
+              ? prod.sync.lastError.at +
+                " — " +
+                safeText(prod.sync.lastError.event) +
+                (prod.sync.lastError.error
+                  ? " : " + prod.sync.lastError.error
+                  : "")
+              : "—");
+
+          // --- Staging ---
+          var stgConn = stg.connection || {};
+          var stgBadge = document.getElementById("overview-staging-conn");
+          var stgStatus =
+            stgConn.shopify && stgConn.shopify.ok
+              ? stgConn.byrdConfigured || stgConn.wmsConfigured
+                ? "ok"
+                : "warn"
+              : "err";
+          setConnBadge(stgBadge, stgStatus);
+          document.getElementById("overview-staging-shopify").textContent =
+            "Shopify: " +
+            (stgConn.shopify && stgConn.shopify.ok
+              ? "OK" +
+                (stgConn.shopify.locationName
+                  ? " — " + stgConn.shopify.locationName
+                  : "")
+              : safeText(stgConn.shopify && stgConn.shopify.message));
+          document.getElementById("overview-staging-sync-stock").textContent =
+            "Stock: " +
+            (stg.sync && stg.sync.lastStockSync && stg.sync.lastStockSync.at
+              ? "Dernière sync " +
+                stg.sync.lastStockSync.at +
+                " (" +
+                safeText(stg.sync.lastStockSync.processed) +
+                " traités)"
+              : "—");
+          var stgStockAt =
+            stg.sync && stg.sync.lastStockSync
+              ? stg.sync.lastStockSync.at
+              : null;
+          document.getElementById("overview-staging-sync-lastany").textContent =
+            stgStockAt ? "Dernière sync stock: " + stgStockAt : "—";
+          document.getElementById("overview-staging-last-error").textContent =
+            "Dernière erreur: " +
+            (stg.sync && stg.sync.lastError && stg.sync.lastError.at
+              ? stg.sync.lastError.at +
+                " — " +
+                safeText(stg.sync.lastError.event) +
+                (stg.sync.lastError.error
+                  ? " : " + stg.sync.lastError.error
+                  : "")
+              : "—");
+        } catch (e) {
+          setApiBanner(e.message || "Erreur aperçu global");
+        } finally {
+          var ov = document.getElementById("overview-overlay");
+          if (ov) ov.setAttribute("aria-busy", "false");
+        }
+      }
+
+      async function bootstrapSession() {
+        await dashLogAuthDebug("bootstrap (avant site-meta)");
+        var r = await apiFetch(functionsBase + "/site-meta", {
+          method: "GET",
+          cache: "no-store",
+        });
+        dashDbg("[dash-debug] site-meta GET", r.status, r.ok ? "ok" : "erreur");
+        if (r.status === 401) {
+          dashDbg(
+            "[dash-debug] 401 → affichage login (cookie absent, invalide ou expiré)",
+          );
+          setLoginGateVisible(true);
+          return;
+        }
+        if (!r.ok) {
+          setLoginGateVisible(false);
+          setApiBanner(
+            "Métadonnées indisponibles (HTTP " +
+              r.status +
+              "). Réessayez ou rechargez la page.",
+          );
+          return;
+        }
+        var data = await r.json().catch(function () {
+          return null;
+        });
+        if (!data || !data.prod || !data.staging) {
+          setLoginGateVisible(true);
+          setApiBanner("");
+          return;
+        }
+        setLoginGateVisible(false);
+        setApiBanner("");
+        siteMeta = data;
+        refreshEnvSelectLabels();
+        applyContextVisuals();
+        await loadOverviewAndShowLanding();
+      }
+
+      document
+        .getElementById("login-form")
+        .addEventListener("submit", async function (ev) {
+          ev.preventDefault();
+          var errEl = document.getElementById("login-err");
+          var input = document.getElementById("login-password");
+          errEl.textContent = "";
+          var pw = input && input.value ? input.value : "";
+          try {
+            var r = await fetch(functionsBase + "/dashboard-auth", {
+              method: "POST",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ password: pw }),
+            });
+            var data = await r.json().catch(function () {
+              return {};
+            });
+            dashDbg(
+              "[dashboard-auth POST]",
+              r.status,
+              data && data.ok,
+              data && data.authDisabled,
+            );
+            if (!r.ok) {
+              errEl.textContent =
+                data.error === "invalid_password"
+                  ? "Mot de passe incorrect."
+                  : data.message || "Erreur " + r.status;
+              return;
+            }
+            setLoginGateVisible(false);
+            input.value = "";
+            setApiBanner("");
+            await bootstrapSession();
+          } catch (e) {
+            errEl.textContent = e.message || "Erreur réseau";
+          }
+        });
+
+      document
+        .getElementById("btn-logout")
+        .addEventListener("click", async function () {
+          try {
+            var lr = await fetch(functionsBase + "/dashboard-logout", {
+              method: "POST",
+              credentials: "same-origin",
+              cache: "no-store",
+              headers: { "Content-Type": "application/json" },
+            });
+            var lbody = await lr.json().catch(function () {
+              return {};
+            });
+            dashDbg(
+              "[dash-debug] dashboard-logout POST",
+              lr.status,
+              lr.ok,
+              lbody,
+            );
+            dashDbg(
+              "[dash-debug] Cookie HttpOnly : illisible en JS ; après logout, vérifie Application → Cookies (aperol_dash_sess doit disparaître ou être vide).",
+            );
+          } catch (e) {
+            dashDbg("[dash-debug] dashboard-logout erreur", e);
+          }
+          await dashLogAuthDebug("après logout");
+          setLoginGateVisible(true);
+          setApiBanner("");
+          var errEl = document.getElementById("login-err");
+          var input = document.getElementById("login-password");
+          if (errEl) errEl.textContent = "";
+          if (input) {
+            input.value = "";
+            try {
+              input.focus();
+            } catch (e) {
+              /* ignore */
+            }
+          }
+        });
+
+      function summarizeDataError(prefix, data, status) {
+        var parts = [];
+        if (prefix) parts.push(prefix);
+        if (data && data.error) parts.push(data.error);
+        if (data && data.message) parts.push(data.message);
+        if (data && data.target) parts.push("(cible: " + data.target + ")");
+        if (parts.length === 0 && status) parts.push("HTTP " + status);
+        return parts.join(" — ");
+      }
+
+      function targetQuery() {
+        return "target=" + encodeURIComponent(currentTarget);
+      }
+
+      function switchEnv(target) {
+        currentTarget = target === "staging" ? "staging" : "prod";
+        var sel = document.getElementById("env-select");
+        if (sel) sel.value = currentTarget;
+        applyContextVisuals();
+        loadStock();
+        loadSyncRuns();
+      }
+
+      function show(el, visible) {
+        if (el) el.style.display = visible ? "" : "none";
+      }
+
+      function setStockSummary(data) {
+        var sumEl = document.getElementById("stock-summary");
+        if (!sumEl) return;
+        var st = data && data.stats;
+        if (!st) {
+          sumEl.textContent = "";
+          sumEl.style.display = "none";
+          return;
+        }
+        var loc = (data && data.locationName) || "Shopify UK";
+        sumEl.textContent =
+          "Byrd : " +
+          st.byrdProductCount +
+          " produits (" +
+          st.byrdUniqueSkuCount +
+          " SKU distincts) · " +
+          loc +
+          " : " +
+          st.shopifyInventoryItemCount +
+          " niveaux de stock (" +
+          st.shopifyUniqueSkuCount +
+          " SKU distincts) · SKUs en commun : " +
+          st.commonSkuCount;
+        sumEl.style.display = "";
+      }
+
+      async function loadStock() {
+        var loading = document.getElementById("stock-loading");
+        var errEl = document.getElementById("stock-error");
+        var table = document.getElementById("stock-table");
+        var body = document.getElementById("stock-body");
+        show(loading, true);
+        show(errEl, false);
+        show(table, false);
+        setStockSummary(null);
+        try {
+          var r = await apiFetch(
+            functionsBase + "/stock-comparison?" + targetQuery(),
+          );
+          var data = await r.json().catch(function () {
+            return {};
+          });
+          show(loading, false);
+          if (r.status === 401) return;
+          if (!r.ok) {
+            var msg = summarizeDataError("Stocks", data, r.status);
+            errEl.textContent = msg;
+            show(errEl, true);
+            setApiBanner(msg);
+            return;
+          }
+          if (data.error) {
+            var w = summarizeDataError("Stocks", data, r.status);
+            errEl.textContent =
+              w +
+              (data.message ? " — " + data.message : "") +
+              (data.hint ? "\n\n" + data.hint : "");
+            show(errEl, true);
+            setApiBanner(w + (data.hint ? " — " + data.hint : ""));
+            setStockSummary(data);
+            return;
+          }
+          setApiBanner("");
+          setStockSummary(data);
+          var comp = data.comparison || [];
+          var thLoc = document.getElementById("stock-shopify-location-header");
+          if (thLoc && data.locationName) thLoc.textContent = data.locationName;
+          function formatShopifyProductKind(k) {
+            if (k == null || k === "") return "—";
+            if (k === "bundle") return "Bundle";
+            if (k === "component") return "Composant";
+            if (k === "mixed") return "Mixte";
+            return "Produit";
+          }
+          body.innerHTML = comp
+            .map(function (row) {
+              var matchClass = row.match ? "match-yes" : "match-no";
+              var matchText = row.match ? "Oui" : "Non";
+              var items = row.shopifyInventoryItems || [];
+              function shopifyDispo(it) {
+                if (it.available != null) return it.available;
+                return it.quantity;
+              }
+              var idsTxt = "—";
+              var idsTitle = "";
+              var shopifyCell = "—";
+              var shopifyQtyTitle = "";
+              if (items.length) {
+                idsTxt = items
+                  .map(function (it) {
+                    var inv =
+                      it.inventoryItemNumericId ||
+                      String(it.inventoryItemGid || "").replace(
+                        /^gid:\/\/shopify\/InventoryItem\//,
+                        "",
+                      );
+                    var v = it.variantNumericId;
+                    if (v && inv)
+                      return escapeHtml("V " + v + " · Inv " + inv);
+                    if (inv) return escapeHtml("Inv " + inv);
+                    return "—";
+                  })
+                  .join(", ");
+                idsTitle = items
+                  .map(function (it) {
+                    var lines = [];
+                    if (it.variantNumericId)
+                      lines.push(
+                        "Variante (admin / URL) : " + it.variantNumericId,
+                      );
+                    lines.push(
+                      "Article inventaire (API) : " +
+                        (it.inventoryItemNumericId || it.inventoryItemGid || "—"),
+                    );
+                    var d = shopifyDispo(it);
+                    if (d != null) lines.push("Disponible (vente) : " + d);
+                    if (it.onHand != null)
+                      lines.push("En stock — physique : " + it.onHand);
+                    if (it.committed != null)
+                      lines.push("Engagé (commandes) : " + it.committed);
+                    if (it.productKind && it.productKind !== "simple") {
+                      lines.push(
+                        "Type : " + formatShopifyProductKind(it.productKind),
+                      );
+                    }
+                    return lines.join("\n");
+                  })
+                  .join("\n---\n");
+                var hasQty = items.some(function (it) {
+                  return shopifyDispo(it) != null;
+                });
+                if (hasQty) {
+                  shopifyCell = items
+                    .map(function (it) {
+                      var disp = shopifyDispo(it);
+                      if (disp == null) return "—";
+                      var s = String(disp);
+                      if (
+                        it.onHand != null &&
+                        Number(it.onHand) !== Number(disp)
+                      ) {
+                        s += " (phys. " + it.onHand + ")";
+                      }
+                      return s;
+                    })
+                    .join(", ");
+                  shopifyQtyTitle =
+                    items.length > 1 && row.shopify != null
+                      ? "Total disponible (vente) à la location : " +
+                        row.shopify +
+                        " — même ordre que Var./Inv."
+                      : "";
+                } else if (row.shopify != null) {
+                  shopifyCell = String(row.shopify);
+                }
+              } else if (row.shopify != null) {
+                shopifyCell = String(row.shopify);
+              }
+              return (
+                "<tr><td>" +
+                escapeHtml(row.sku) +
+                "</td><td>" +
+                escapeHtml(formatShopifyProductKind(row.shopifyProductKind)) +
+                "</td><td>" +
+                (row.byrd != null ? row.byrd : "—") +
+                '</td><td title="' +
+                escapeHtml(shopifyQtyTitle || "") +
+                '">' +
+                shopifyCell +
+                '</td><td class="stock-shopify-ids" title="' +
+                escapeHtml(idsTitle) +
+                '">' +
+                idsTxt +
+                (items.length > 1
+                  ? ' <span style="font-size:0.75rem;color:var(--muted);">(' +
+                    items.length +
+                    ")</span>"
+                  : "") +
+                '</td><td class="' +
+                matchClass +
+                '">' +
+                matchText +
+                "</td></tr>"
+              );
+            })
+            .join("");
+          show(table, true);
+        } catch (e) {
+          show(loading, false);
+          errEl.textContent = e.message || "Erreur réseau";
+          show(errEl, true);
+        }
+      }
+
+      function formatSyncRunKind(k) {
+        if (k === "sync-uk") return "Sync UK";
+        if (k === "stock") return "Stock seul";
+        if (k === "shipments") return "Expéditions (ancien)";
+        return k || "—";
+      }
+
+      function formatSyncPartCell(p) {
+        if (p && p.detail && p.detail.notRun) return "—";
+        if (!p) return "—";
+        var ok = p.ok ? "ok" : "⚠";
+        return String(p.success) + " ✓ / " + String(p.failed) + " ✗ " + ok;
+      }
+
+      function stockAdjustStatusFr(st) {
+        if (st === "adjusted") return "OK (ajusté)";
+        if (st === "skipped_no_inventory_item")
+          return "Ignoré — pas d’article Shopify pour ce SKU";
+        if (st === "user_error") return "Erreur Shopify (API)";
+        if (st === "exception") return "Exception réseau / technique";
+        return st || "—";
+      }
+
+      function fillSyncRunDetailCell(td, run) {
+        td.innerHTML = "";
+        var stockDetail = run.stock && run.stock.detail;
+        if (
+          stockDetail &&
+          Array.isArray(stockDetail.lines) &&
+          stockDetail.lines.length
+        ) {
+          var hs = document.createElement("h4");
+          hs.className = "sync-run-detail-heading";
+          hs.textContent = "Stock — par SKU (produit)";
+          td.appendChild(hs);
+          var ts = document.createElement("table");
+          ts.className = "sync-run-lines-table";
+          ts.innerHTML =
+            "<thead><tr><th>SKU</th><th>ID Shopify</th><th>Delta</th><th>Résultat</th><th>Info</th></tr></thead>";
+          var tbs = document.createElement("tbody");
+          stockDetail.lines.forEach(function (line) {
+            var info = "";
+            if (line.messages && line.messages.length)
+              info = line.messages.join("; ");
+            else if (line.error) info = line.error;
+            var idShow = "—";
+            if (line.inventoryItemId) {
+              var m = /InventoryItem\/(\d+)/.exec(line.inventoryItemId);
+              idShow = m ? m[1] : line.inventoryItemId;
+            }
+            var tr = document.createElement("tr");
+            tr.innerHTML =
+              "<td>" +
+              escapeHtml(line.sku || "—") +
+              '</td><td title="' +
+              escapeHtml(line.inventoryItemId || "") +
+              '">' +
+              escapeHtml(idShow) +
+              "</td><td>" +
+              escapeHtml(String(line.delta)) +
+              "</td><td>" +
+              escapeHtml(stockAdjustStatusFr(line.status)) +
+              "</td><td>" +
+              escapeHtml(info) +
+              "</td>";
+            tbs.appendChild(tr);
+          });
+          ts.appendChild(tbs);
+          td.appendChild(ts);
+        }
+        var pre = document.createElement("pre");
+        pre.className = "sync-run-pre";
+        pre.textContent = JSON.stringify(
+          {
+            id: run.id,
+            at: run.at,
+            target: run.target,
+            kind: run.kind,
+            durationSec: run.durationSec,
+            stock: run.stock,
+            shipments: run.shipments,
+          },
+          null,
+          2,
+        );
+        td.appendChild(pre);
+      }
+
+      async function loadSyncRuns() {
+        var loading = document.getElementById("sync-runs-loading");
+        var errEl = document.getElementById("sync-runs-error");
+        var table = document.getElementById("sync-runs-table");
+        var body = document.getElementById("sync-runs-body");
+        var empty = document.getElementById("sync-runs-empty");
+        show(loading, true);
+        show(errEl, false);
+        show(table, false);
+        show(empty, false);
+        lastSyncRuns = [];
+        try {
+          var r = await apiFetch(
+            functionsBase + "/sync-runs?limit=80&" + targetQuery(),
+          );
+          if (r.status === 401) {
+            show(loading, false);
+            return;
+          }
+          var data = await r.json().catch(function () {
+            return {};
+          });
+          show(loading, false);
+          if (!r.ok || data.error) {
+            errEl.textContent =
+              data && (data.message || data.error)
+                ? data.message || data.error
+                : "Erreur HTTP " + r.status;
+            show(errEl, true);
+            return;
+          }
+          var runs = data.runs || [];
+          lastSyncRuns = runs;
+          if (!Array.isArray(runs) || runs.length === 0) {
+            show(empty, true);
+            return;
+          }
+          body.innerHTML = runs
+            .map(function (run, i) {
+              var ts = run.at || "";
+              var totalS = (run.stock && run.stock.success) || 0;
+              var totalF = (run.stock && run.stock.failed) || 0;
+              return (
+                '<tr data-run-index="' +
+                i +
+                '">' +
+                "<td>" +
+                escapeHtml(ts) +
+                "</td>" +
+                "<td>" +
+                escapeHtml(formatSyncRunKind(run.kind)) +
+                "</td>" +
+                "<td>" +
+                escapeHtml(formatSyncPartCell(run.stock)) +
+                "</td>" +
+                "<td>" +
+                escapeHtml(String(totalS) + " ✓ / " + String(totalF) + " ✗") +
+                "</td>" +
+                '<td style="white-space:nowrap;">' +
+                '<button type="button" class="btn-sync-run-detail">Détail</button> ' +
+                '<button type="button" class="btn-sync-run-delete">Supprimer</button>' +
+                "</td></tr>" +
+                '<tr class="sync-run-detail" style="display:none;" data-detail-for="' +
+                i +
+                '"><td colspan="5" class="sync-run-detail-cell"></td></tr>'
+              );
+            })
+            .join("");
+          show(table, true);
+        } catch (e) {
+          show(loading, false);
+          errEl.textContent = e.message || "Erreur réseau";
+          show(errEl, true);
+        }
+      }
+
+      async function syncStockNow() {
+        var btn = document.getElementById("sync-stock-now");
+        if (btn) btn.disabled = true;
+        setApiBanner("Sync stock en cours…");
+        try {
+          var r = await apiFetch(
+            functionsBase + "/sync-uk-stock-now?" + targetQuery(),
+            { method: "POST", cache: "no-store" },
+          );
+          var t = await r.text().catch(function () {
+            return "";
+          });
+          setApiBanner(t || "Sync stock terminée (HTTP " + r.status + ")");
+          await loadStock();
+          await loadSyncRuns();
+        } catch (e) {
+          setApiBanner(e.message || "Erreur sync stock");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+      async function syncStockSkuTestNow() {
+        var skuInput = document.getElementById("stock-sku-test");
+        var dryRunCb = document.getElementById("stock-sku-dry-run");
+        var btn = document.getElementById("sync-stock-sku-test-now");
+        if (!skuInput || !dryRunCb || !btn) return;
+
+        var sku = (skuInput.value || "").trim();
+        if (!sku) {
+          setApiBanner("SKU manquant pour le test.");
+          return;
+        }
+
+        btn.disabled = true;
+        setApiBanner("Test stock SKU en cours…");
+        try {
+          var dryRun = dryRunCb.checked ? "true" : "false";
+          var url =
+            functionsBase +
+            "/sync-uk-stock-sku-now?sku=" +
+            encodeURIComponent(sku) +
+            "&dryRun=" +
+            encodeURIComponent(dryRun) +
+            "&" +
+            targetQuery();
+
+          var r = await apiFetch(url, { method: "POST", cache: "no-store" });
+          var data = await r.json().catch(function () {
+            return {};
+          });
+          if (!r.ok || data.error) {
+            var msg =
+              data && (data.message || data.error)
+                ? data.message || data.error
+                : "Erreur HTTP " + r.status;
+            setApiBanner("Test SKU échoué : " + msg);
+          } else {
+            setApiBanner(
+              "Test SKU terminé : delta=" +
+                data.delta +
+                (dryRunCb.checked ? " (dry-run)" : ""),
+            );
+            var resEl = document.getElementById("stock-sku-test-result");
+            if (resEl) {
+              resEl.style.display = "block";
+              var locName = data.locationName || "Shopify UK";
+              var dry = data.dryRun ? "dry-run" : "application";
+              var deltaTxt =
+                data.delta === 0 ? "0 (pas de changement)" : String(data.delta);
+              resEl.innerHTML =
+                "<div><strong>Test SKU</strong> (" +
+                escapeHtml(data.target) +
+                ")</div>" +
+                "<div style='margin-top:0.25rem;'>SKU: " +
+                escapeHtml(data.sku) +
+                "</div>" +
+                "<div>Byrd (WMS): " +
+                escapeHtml(String(data.desired)) +
+                "</div>" +
+                "<div>" +
+                escapeHtml(locName) +
+                ": " +
+                escapeHtml(String(data.current)) +
+                "</div>" +
+                "<div>Delta: " +
+                escapeHtml(deltaTxt) +
+                "</div>" +
+                (data.currentAfter != null
+                  ? "<div style='margin-top:0.25rem;'>" +
+                    escapeHtml(locName) +
+                    " (après): " +
+                    escapeHtml(String(data.currentAfter)) +
+                    "</div>"
+                  : "") +
+                (data.summary
+                  ? "<div style='margin-top:0.25rem;'>Tenté: " +
+                    escapeHtml(String(data.summary.attempted)) +
+                    " — Ajusté: " +
+                    escapeHtml(String(data.summary.adjusted)) +
+                    " — Ignoré (SKU inconnu): " +
+                    escapeHtml(String(data.summary.skippedMissingItemId)) +
+                    " — Erreurs: " +
+                    escapeHtml(String(data.summary.userErrors)) +
+                    "</div>"
+                  : "") +
+                "<div style='color:var(--muted); font-size:0.85rem; margin-top:0.25rem;'>" +
+                escapeHtml(dry) +
+                "</div>";
+            }
+            await loadStock();
+            await loadSyncRuns();
+          }
+        } catch (e) {
+          setApiBanner(e.message || "Erreur test SKU");
+        } finally {
+          btn.disabled = false;
+        }
+      }
+
+      function activateTab(name) {
+        ["stock", "sync-runs", "slack"].forEach(function (t) {
+          var btn = document.getElementById("tab-" + t);
+          var section = document.getElementById("section-" + t);
+          var active = t === name;
+          if (btn) btn.classList.toggle("active", active);
+          if (section) section.classList.toggle("active", active);
+        });
+      }
+
+      function applySlackFormDisabledState() {
+        var ov = document.getElementById("slack-overrides-active");
+        var master = document.getElementById("slack-notify-master");
+        var pr = document.getElementById("slack-per-run");
+        var dg = document.getElementById("slack-daily-digest");
+        var on = ov && ov.checked;
+        if (master) master.disabled = !on;
+        if (pr) pr.disabled = !on || (master && !master.checked);
+        if (dg) dg.disabled = !on || (master && !master.checked);
+      }
+
+      var lastSlackPayload = null;
+
+      async function loadSlackSettingsPanel() {
+        var loading = document.getElementById("slack-settings-loading");
+        var panel = document.getElementById("slack-settings-panel");
+        var errEl = document.getElementById("slack-settings-error");
+        if (loading) loading.style.display = "";
+        if (panel) panel.style.display = "none";
+        if (errEl) {
+          errEl.style.display = "none";
+          errEl.textContent = "";
+        }
+        try {
+          var r = await apiFetch(functionsBase + "/slack-settings", {
+            method: "GET",
+          });
+          if (r.status === 401) return;
+          var data = await r.json();
+          if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
+          lastSlackPayload = data;
+          if (loading) loading.style.display = "none";
+          if (panel) panel.style.display = "";
+          var ov = document.getElementById("slack-overrides-active");
+          var n = document.getElementById("slack-notify-master");
+          var pr = document.getElementById("slack-per-run");
+          var dg = document.getElementById("slack-daily-digest");
+          var hasDash =
+            data.stored && Object.prototype.hasOwnProperty.call(data.stored, "overridesActive")
+              ? data.stored.overridesActive
+              : false;
+          if (ov) ov.checked = !!hasDash;
+          if (hasDash && data.stored) {
+            if (n) n.checked = !!data.stored.notificationsEnabled;
+            if (pr) pr.checked = !!data.stored.perRunReportsEnabled;
+            if (dg) dg.checked = !!data.stored.dailyDigestEnabled;
+          } else {
+            if (n) n.checked = !!data.env.notifications;
+            if (pr) pr.checked = !!data.env.perRunReports;
+            if (dg) dg.checked = !!data.env.dailyDigest;
+          }
+          var wh = document.getElementById("slack-webhook-status");
+          if (wh)
+            wh.textContent = data.webhookConfigured
+              ? "oui"
+              : "non — ajouter SLACK_WEBHOOK_URL";
+          var eff = document.getElementById("slack-effective-line");
+          if (eff) {
+            eff.textContent =
+              "Effet actuel : " +
+              (data.source === "dashboard" ? "dashboard" : ".env / Netlify") +
+              " — master " +
+              (data.effective.notifications ? "oui" : "non") +
+              ", après sync " +
+              (data.effective.perRunReports ? "oui" : "non") +
+              ", digest " +
+              (data.effective.dailyDigest ? "oui" : "non");
+          }
+          applySlackFormDisabledState();
+        } catch (e) {
+          if (loading) loading.style.display = "none";
+          if (errEl) {
+            errEl.style.display = "block";
+            errEl.textContent =
+              e.message || "Impossible de charger les réglages Slack";
+          }
+        }
+      }
+
+      async function saveSlackSettings(overridesActive, snapshot) {
+        var body = {
+          overridesActive: !!overridesActive,
+          notificationsEnabled: snapshot.notify,
+          perRunReportsEnabled: snapshot.perRun,
+          dailyDigestEnabled: snapshot.digest,
+        };
+        var r = await apiFetch(functionsBase + "/slack-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (r.status === 401) return;
+        var data = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok)
+          throw new Error(data.error || "Enregistrement HTTP " + r.status);
+        setApiBanner("Réglages Slack enregistrés.");
+        await loadSlackSettingsPanel();
+      }
+
+      function escapeHtml(s) {
+        if (s == null) return "";
+        var div = document.createElement("div");
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      document
+        .getElementById("env-select")
+        .addEventListener("change", function () {
+          hideOverviewOverlay();
+          switchEnv(this.value);
+        });
+      AUTO_SYNC_KEYS.forEach(function (key) {
+        var enabledEl = document.getElementById(
+          "auto-sync-" + key + "-enabled",
+        );
+        var minutesEl = document.getElementById(
+          "auto-sync-" + key + "-minutes",
+        );
+        var runNowEl = document.getElementById("auto-sync-" + key + "-run-now");
+
+        if (enabledEl) {
+          enabledEl.addEventListener("change", function () {
+            localStorage.setItem(
+              "aperol:autoSync:" + key + ":enabled",
+              this.checked ? "1" : "0",
+            );
+            applyAutoSyncConfigForKey(key);
+          });
+        }
+        if (minutesEl) {
+          minutesEl.addEventListener("change", function () {
+            var v = Number(this.value || "10");
+            if (!Number.isFinite(v) || v < 1) v = 1;
+            this.value = String(Math.floor(v));
+            localStorage.setItem(
+              "aperol:autoSync:" + key + ":minutes",
+              this.value,
+            );
+            applyAutoSyncConfigForKey(key);
+          });
+        }
+        if (runNowEl) {
+          runNowEl.addEventListener("click", function () {
+            void runAutoSyncCycleForKey(key);
+          });
+        }
+      });
+
+      var openProdBtn = document.getElementById("open-env-prod");
+      if (openProdBtn) {
+        openProdBtn.addEventListener("click", function () {
+          currentTarget = "prod";
+          var sel = document.getElementById("env-select");
+          if (sel) sel.value = currentTarget;
+          applyContextVisuals();
+          hideOverviewOverlay();
+          loadStock();
+          loadSyncRuns();
+        });
+      }
+
+      var openStgBtn = document.getElementById("open-env-staging");
+      if (openStgBtn) {
+        openStgBtn.addEventListener("click", function () {
+          currentTarget = "staging";
+          var sel = document.getElementById("env-select");
+          if (sel) sel.value = currentTarget;
+          applyContextVisuals();
+          hideOverviewOverlay();
+          loadStock();
+          loadSyncRuns();
+        });
+      }
+
+      document
+        .getElementById("refresh-stock")
+        .addEventListener("click", loadStock);
+      document
+        .getElementById("sync-stock-now")
+        .addEventListener("click", syncStockNow);
+      document
+        .getElementById("sync-stock-sku-test-now")
+        .addEventListener("click", syncStockSkuTestNow);
+      document
+        .getElementById("refresh-sync-runs")
+        .addEventListener("click", loadSyncRuns);
+      document
+        .getElementById("tab-stock")
+        .addEventListener("click", function () {
+          activateTab("stock");
+        });
+      document
+        .getElementById("tab-sync-runs")
+        .addEventListener("click", function () {
+          activateTab("sync-runs");
+          loadSyncRuns();
+        });
+      var tabSlack = document.getElementById("tab-slack");
+      if (tabSlack) {
+        tabSlack.addEventListener("click", function () {
+          activateTab("slack");
+          loadSlackSettingsPanel();
+        });
+      }
+      var slackOv = document.getElementById("slack-overrides-active");
+      if (slackOv) {
+        slackOv.addEventListener("change", function () {
+          applySlackFormDisabledStateFromDashboardToggle();
+        });
+      }
+      var slackMaster = document.getElementById("slack-notify-master");
+      if (slackMaster) {
+        slackMaster.addEventListener("change", function () {
+          applySlackFormDisabledState();
+        });
+      }
+      var slackSave = document.getElementById("slack-settings-save");
+      if (slackSave) {
+        slackSave.addEventListener("click", async function () {
+          var ov = document.getElementById("slack-overrides-active");
+          var n = document.getElementById("slack-notify-master");
+          var pr = document.getElementById("slack-per-run");
+          var dg = document.getElementById("slack-daily-digest");
+          var snap = {
+            notify: n && n.checked,
+            perRun: pr && pr.checked,
+            digest: dg && dg.checked,
+          };
+          try {
+            await saveSlackSettings(ov && ov.checked, snap);
+          } catch (e) {
+            setApiBanner(e.message || "Erreur enregistrement Slack");
+          }
+        });
+      }
+      var slackReset = document.getElementById("slack-settings-reset");
+      if (slackReset) {
+        slackReset.addEventListener("click", async function () {
+          var n = document.getElementById("slack-notify-master");
+          var pr = document.getElementById("slack-per-run");
+          var dg = document.getElementById("slack-daily-digest");
+          var snap = {
+            notify: n && n.checked,
+            perRun: pr && pr.checked,
+            digest: dg && dg.checked,
+          };
+          try {
+            await saveSlackSettings(false, snap);
+          } catch (e) {
+            setApiBanner(e.message || "Erreur Slack");
+          }
+        });
+      }
+
+      function applySlackFormDisabledStateFromDashboardToggle() {
+        var ov = document.getElementById("slack-overrides-active");
+        var n = document.getElementById("slack-notify-master");
+        var pr = document.getElementById("slack-per-run");
+        var dg = document.getElementById("slack-daily-digest");
+        if (!ov || !lastSlackPayload) {
+          applySlackFormDisabledState();
+          return;
+        }
+        if (!ov.checked) {
+          if (n) n.checked = !!lastSlackPayload.env.notifications;
+          if (pr) pr.checked = !!lastSlackPayload.env.perRunReports;
+          if (dg) dg.checked = !!lastSlackPayload.env.dailyDigest;
+        } else {
+          if (n) n.checked = !!lastSlackPayload.effective.notifications;
+          if (pr) pr.checked = !!lastSlackPayload.effective.perRunReports;
+          if (dg) dg.checked = !!lastSlackPayload.effective.dailyDigest;
+        }
+        applySlackFormDisabledState();
+      }
+
+      var syncRunsBody = document.getElementById("sync-runs-body");
+      if (syncRunsBody) {
+        syncRunsBody.addEventListener("click", async function (ev) {
+          var t = ev.target;
+          if (t.classList.contains("btn-sync-run-detail")) {
+            var tr = t.closest("tr");
+            if (
+              !tr ||
+              tr.dataset.runIndex === undefined ||
+              tr.dataset.runIndex === ""
+            )
+              return;
+            var idx = Number(tr.dataset.runIndex);
+            var detailRow = tr.nextElementSibling;
+            if (!detailRow || !detailRow.classList.contains("sync-run-detail"))
+              return;
+            var td =
+              detailRow.querySelector("td.sync-run-detail-cell") ||
+              detailRow.querySelector("td");
+            var isHidden = detailRow.style.display === "none";
+            if (isHidden) {
+              detailRow.style.display = "";
+              if (td && lastSyncRuns[idx]) {
+                fillSyncRunDetailCell(td, lastSyncRuns[idx]);
+              }
+            } else {
+              detailRow.style.display = "none";
+            }
+            return;
+          }
+          if (t.classList.contains("btn-sync-run-delete")) {
+            var tr2 = t.closest("tr");
+            if (
+              !tr2 ||
+              tr2.dataset.runIndex === undefined ||
+              tr2.dataset.runIndex === ""
+            )
+              return;
+            var idx2 = Number(tr2.dataset.runIndex);
+            var runDel = lastSyncRuns[idx2];
+            if (!runDel || !confirm("Supprimer ce run de l’historique ?"))
+              return;
+            try {
+              var r = await apiFetch(
+                functionsBase +
+                  "/sync-runs?id=" +
+                  encodeURIComponent(runDel.id),
+                { method: "DELETE", cache: "no-store" },
+              );
+              if (r.status === 401) return;
+              var d = await r.json().catch(function () {
+                return {};
+              });
+              if (!r.ok) {
+                setApiBanner(
+                  d && d.error ? d.error : "Suppression HTTP " + r.status,
+                );
+                return;
+              }
+              setApiBanner("");
+              await loadSyncRuns();
+            } catch (e) {
+              setApiBanner(e.message || "Erreur suppression");
+            }
+          }
+        });
+      }
+
+      window.addEventListener("pageshow", function (ev) {
+        if (ev.persisted) {
+          void bootstrapSession();
+        }
+      });
+
+      applyAllAutoSyncConfigs();
+      bootstrapSession();
+    </script>
+  </body>
 </html>

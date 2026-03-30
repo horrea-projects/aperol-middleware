@@ -1,0 +1,11 @@
+node_modules/
+dist/
+# Fichiers JS obsolètes : netlify dev charge souvent le .js à la place du .ts
+netlify/functions/*.js
+.netlify/
+.DS_Store
+.env
+.env.local
+middleware.log
+data/
+docs/
