@@ -1,5 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { guardDashboardAuth } from "../../src/utils/dashboardAuth";
+import { bindNetlifyBlobsForLambda } from "../../src/utils/netlifyBlobsLambda";
 import {
   getSlackEnvBaseline,
   invalidateSlackPolicyCache,
@@ -18,6 +19,7 @@ const CORS = {
 };
 
 export const handler: Handler = async (event) => {
+  bindNetlifyBlobsForLambda(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: CORS, body: "" };
   }

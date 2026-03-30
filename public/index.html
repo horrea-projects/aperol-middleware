@@ -1,28 +1,28 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Middleware UK — Dashboard</title>
-    <style>
-      :root {
-        --bg: #0f1419;
-        --surface: #1a2332;
-        --border: #2d3a4d;
-        --text: #e6edf3;
-        --muted: #8b949e;
-        --ok: #3fb950;
-        --warn: #d29922;
-        --err: #f85149;
-        --accent: #58a6ff;
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Middleware UK — Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --ok: #3fb950;
+      --warn: #d29922;
+      --err: #f85149;
+      --accent: #58a6ff;
         --env-prod: #3fb950;
         --env-staging: #a371f7;
         --radius: 8px;
-      }
+    }
       * {
         box-sizing: border-box;
       }
-      body {
+    body {
         font-family:
           system-ui,
           -apple-system,
@@ -31,9 +31,9 @@
           "Helvetica Neue",
           Arial,
           sans-serif;
-        background: var(--bg);
-        color: var(--text);
-        margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
         padding: 0 0 2rem;
         line-height: 1.45;
         font-size: 15px;
@@ -104,7 +104,7 @@
         font-size: 0.85rem;
         padding: 0.4rem 0.45rem;
         border-radius: 6px;
-        border: 1px solid var(--border);
+      border: 1px solid var(--border);
         background: var(--surface);
         color: var(--text);
       }
@@ -117,7 +117,7 @@
         font: inherit;
         font-size: 0.9rem;
         padding: 0.5rem 2rem 0.5rem 0.65rem;
-        border-radius: 8px;
+      border-radius: 8px;
         border: 1px solid var(--border);
         background: var(--surface);
         color: var(--text);
@@ -203,13 +203,13 @@
       .workspace {
         margin-top: 0;
       }
-      .refresh button {
-        background: var(--border);
-        color: var(--text);
-        border: none;
+    .refresh button {
+      background: var(--border);
+      color: var(--text);
+      border: none;
         padding: 0.4rem 0.75rem;
         border-radius: 6px;
-        cursor: pointer;
+      cursor: pointer;
         font-size: 0.8rem;
       }
       .refresh button:hover {
@@ -232,7 +232,7 @@
         margin-bottom: 0.75rem;
         flex-wrap: wrap;
       }
-      .tab-btn {
+    .tab-btn {
         background: transparent;
         color: var(--muted);
         border: 1px solid transparent;
@@ -427,13 +427,13 @@
         flex-wrap: wrap;
       }
       .overview-actions button {
-        background: var(--border);
-        color: var(--text);
-        border: none;
+      background: var(--border);
+      color: var(--text);
+      border: none;
         padding: 0.5rem 0.8rem;
         border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.85rem;
+      cursor: pointer;
+      font-size: 0.85rem;
         font-weight: 600;
       }
       .overview-actions button:hover {
@@ -579,9 +579,9 @@
       .sync-run-lines-table td {
         padding: 0.35rem 0.5rem;
       }
-    </style>
-  </head>
-  <body>
+  </style>
+</head>
+<body>
     <div
       id="login-gate"
       class="login-gate visible login-gate--boot"
@@ -612,7 +612,7 @@
         <button type="submit">Se connecter</button>
         <p class="login-err" id="login-err" aria-live="polite"></p>
       </form>
-    </div>
+  </div>
 
     <div id="app-shell" class="app-logged-out">
       <header class="site-header" aria-label="En-tête">
@@ -717,9 +717,9 @@
           <p class="context-hint" id="context-hint">
             Stocks et historique des runs ci‑dessous correspondent à cet
             environnement uniquement (tokens API distincts côté Netlify pour la
-            prod et le staging). La synchronisation automatique est assurée par
-            les crons Netlify (<code>sync-uk</code> /
-            <code>sync-uk-staging</code>).
+            prod et le staging). La sync complète serveur (<code>sync-uk</code>)
+            est réveillée toutes les 5 minutes ; l’intervalle entre deux
+            exécutions est réglable dans l’onglet Stocks (section planification).
           </p>
         </div>
 
@@ -831,7 +831,7 @@
                     margin-bottom: 0.35rem;
                   "
                 >
-                  Auto-sync Production — Stock
+                  Auto-sync Production — Stock (navigateur · stock seul)
                 </div>
                 <div class="auto-sync-row" style="margin-bottom: 0.35rem">
                   <label
@@ -887,7 +887,7 @@
                     margin-bottom: 0.35rem;
                   "
                 >
-                  Auto-sync Staging — Stock
+                  Auto-sync Staging — Stock (navigateur · stock seul)
                 </div>
                 <div class="auto-sync-row" style="margin-bottom: 0.35rem">
                   <label
@@ -939,8 +939,138 @@
                 </div>
               </div>
             </div>
-            <div class="card">
-              <div id="stock-loading" class="loading">Chargement…</div>
+
+            <div
+              class="card"
+              style="margin-top: 0.65rem; padding: 0.9rem 1rem"
+              id="sync-schedule-card"
+            >
+              <h3
+                style="
+                  margin: 0 0 0.45rem 0;
+                  font-size: 1rem;
+                  font-weight: 600;
+                "
+              >
+                Planification sync complète (serveur Netlify)
+              </h3>
+              <p
+                id="sync-sched-hint-line"
+                style="margin: 0 0 0.65rem 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4"
+              >
+                Chargement…
+              </p>
+              <div id="sync-schedule-loading" class="loading">Chargement…</div>
+              <div
+                id="sync-schedule-error"
+                class="error-msg"
+                style="display: none"
+              ></div>
+              <div id="sync-schedule-panel" style="display: none">
+                <div
+                  style="
+                    display: grid;
+                    gap: 0.55rem 1rem;
+                    grid-template-columns: 1fr 1fr;
+                    align-items: start;
+                    margin-bottom: 0.65rem;
+                  "
+                >
+                  <div>
+                    <div
+                      style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.25rem"
+                    >
+                      Production · <code>sync-uk</code>
+                    </div>
+                    <label
+                      style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem"
+                    >
+                      <input type="checkbox" id="sync-sched-prod-enabled" />
+                      Planifié actif
+                    </label>
+                    <div
+                      class="auto-sync-row"
+                      style="margin-top: 0.35rem; flex-wrap: wrap"
+                    >
+                      <span style="font-size: 0.85rem; color: var(--muted)"
+                        >Min entre deux runs</span
+                      >
+                      <input
+                        type="number"
+                        id="sync-sched-prod-minutes"
+                        min="5"
+                        step="1"
+                        value="120"
+                        style="width: 5rem"
+                      />
+                      <span style="font-size: 0.78rem; color: var(--muted)"
+                        >min</span
+                      >
+                    </div>
+                    <div
+                      id="sync-sched-last-prod"
+                      style="font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem"
+                    >
+                      —
+                    </div>
+                  </div>
+                  <div>
+                    <div
+                      style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.25rem"
+                    >
+                      Staging · <code>sync-uk-staging</code>
+                    </div>
+                    <label
+                      style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem"
+                    >
+                      <input type="checkbox" id="sync-sched-staging-enabled" />
+                      Planifié actif
+                    </label>
+                    <div
+                      class="auto-sync-row"
+                      style="margin-top: 0.35rem; flex-wrap: wrap"
+                    >
+                      <span style="font-size: 0.85rem; color: var(--muted)"
+                        >Min entre deux runs</span
+                      >
+                      <input
+                        type="number"
+                        id="sync-sched-staging-minutes"
+                        min="5"
+                        step="1"
+                        value="120"
+                        style="width: 5rem"
+                      />
+                      <span style="font-size: 0.78rem; color: var(--muted)"
+                        >min</span
+                      >
+                    </div>
+                    <div
+                      id="sync-sched-last-staging"
+                      style="font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem"
+                    >
+                      —
+                    </div>
+                  </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center">
+                  <button type="button" id="sync-schedule-save">
+                    Enregistrer sur le serveur
+                  </button>
+                  <button
+                    type="button"
+                    id="sync-uk-full-now"
+                    class="btn-secondary"
+                    title="Lance sync-uk pour l’environnement sélectionné dans le menu (sans attendre l’intervalle)"
+                  >
+                    Sync UK complète maintenant (env courant)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+    <div class="card">
+      <div id="stock-loading" class="loading">Chargement…</div>
               <div
                 id="stock-error"
                 class="error-msg"
@@ -967,15 +1097,15 @@
                 "
               ></div>
               <table id="stock-table" style="display: none">
-                <thead>
-                  <tr>
-                    <th>SKU</th>
+        <thead>
+          <tr>
+            <th>SKU</th>
                     <th
                       title="D’après l’API Admin Shopify : produit standard, bundle (offre avec composants), ou composant utilisé dans un bundle parent."
                     >
                       Type
                     </th>
-                    <th>Byrd (WMS)</th>
+            <th>Byrd (WMS)</th>
                     <th
                       id="stock-shopify-location-header"
                       title="Quantité « disponible » à la vente (comme la sync). Peut être négative si le stock engagé (commandes) dépasse le physique ; dans ce cas le nombre (phys.) est le « En stock » de l’admin."
@@ -992,12 +1122,12 @@
                     >
                       Aligné
                     </th>
-                  </tr>
-                </thead>
-                <tbody id="stock-body"></tbody>
-              </table>
-            </div>
-          </section>
+          </tr>
+        </thead>
+        <tbody id="stock-body"></tbody>
+      </table>
+    </div>
+  </section>
 
           <section id="section-sync-runs" class="tab-section content-panel">
             <h2 class="panel-title">Historique des runs (résumé)</h2>
@@ -1013,10 +1143,10 @@
               <strong>détail par SKU</strong> puis le JSON complet ; vous pouvez
               supprimer une entrée.
             </p>
-            <div class="refresh">
+    <div class="refresh">
               <button type="button" id="refresh-sync-runs">Actualiser</button>
-            </div>
-            <div class="card">
+    </div>
+    <div class="card">
               <div id="sync-runs-loading" class="loading">Chargement…</div>
               <div
                 id="sync-runs-error"
@@ -1024,17 +1154,17 @@
                 style="display: none"
               ></div>
               <table id="sync-runs-table" style="display: none">
-                <thead>
-                  <tr>
+        <thead>
+          <tr>
                     <th>Date (UTC)</th>
                     <th>Type</th>
                     <th>Stock (✓ / ✗)</th>
                     <th>Total ✓ / ✗</th>
                     <th></th>
-                  </tr>
-                </thead>
+          </tr>
+        </thead>
                 <tbody id="sync-runs-body"></tbody>
-              </table>
+      </table>
               <p
                 id="sync-runs-empty"
                 style="display: none; padding: 1rem; color: var(--muted)"
@@ -1043,8 +1173,8 @@
                 <code>sync-uk</code> et les sync manuelles (stock) alimentent
                 cet historique.
               </p>
-            </div>
-          </section>
+    </div>
+  </section>
 
           <section id="section-slack" class="tab-section content-panel">
             <h2 class="panel-title">Notifications Slack</h2>
@@ -1136,13 +1266,13 @@
                   Suivre uniquement .env / Netlify
                 </button>
               </div>
-            </div>
-          </section>
+    </div>
+  </section>
         </div>
       </div>
     </div>
 
-    <script>
+  <script>
       // Toujours la racine du site : sur Netlify les fonctions sont à `/.netlify/functions`,
       // jamais sous `/index.html/` ni un sous-chemin (sinon 404 → écran login masqué par erreur).
       const functionsBase = "/.netlify/functions";
@@ -1606,6 +1736,7 @@
         refreshEnvSelectLabels();
         applyContextVisuals();
         await loadOverviewAndShowLanding();
+        await loadSyncSchedulePanel();
       }
 
       document
@@ -1713,9 +1844,9 @@
         loadSyncRuns();
       }
 
-      function show(el, visible) {
-        if (el) el.style.display = visible ? "" : "none";
-      }
+    function show(el, visible) {
+      if (el) el.style.display = visible ? "" : "none";
+    }
 
       function setStockSummary(data) {
         var sumEl = document.getElementById("stock-summary");
@@ -1743,14 +1874,14 @@
         sumEl.style.display = "";
       }
 
-      async function loadStock() {
+    async function loadStock() {
         var loading = document.getElementById("stock-loading");
         var errEl = document.getElementById("stock-error");
         var table = document.getElementById("stock-table");
         var body = document.getElementById("stock-body");
-        show(loading, true);
-        show(errEl, false);
-        show(table, false);
+      show(loading, true);
+      show(errEl, false);
+      show(table, false);
         setStockSummary(null);
         try {
           var r = await apiFetch(
@@ -1759,15 +1890,15 @@
           var data = await r.json().catch(function () {
             return {};
           });
-          show(loading, false);
+        show(loading, false);
           if (r.status === 401) return;
-          if (!r.ok) {
+        if (!r.ok) {
             var msg = summarizeDataError("Stocks", data, r.status);
             errEl.textContent = msg;
-            show(errEl, true);
+          show(errEl, true);
             setApiBanner(msg);
-            return;
-          }
+          return;
+        }
           if (data.error) {
             var w = summarizeDataError("Stocks", data, r.status);
             errEl.textContent =
@@ -1903,13 +2034,13 @@
               );
             })
             .join("");
-          show(table, true);
-        } catch (e) {
-          show(loading, false);
-          errEl.textContent = e.message || "Erreur réseau";
-          show(errEl, true);
-        }
+        show(table, true);
+      } catch (e) {
+        show(loading, false);
+        errEl.textContent = e.message || "Erreur réseau";
+        show(errEl, true);
       }
+    }
 
       function formatSyncRunKind(k) {
         if (k === "sync-uk") return "Sync UK";
@@ -2005,10 +2136,10 @@
         var table = document.getElementById("sync-runs-table");
         var body = document.getElementById("sync-runs-body");
         var empty = document.getElementById("sync-runs-empty");
-        show(loading, true);
-        show(errEl, false);
-        show(table, false);
-        show(empty, false);
+      show(loading, true);
+      show(errEl, false);
+      show(table, false);
+      show(empty, false);
         lastSyncRuns = [];
         try {
           var r = await apiFetch(
@@ -2021,7 +2152,7 @@
           var data = await r.json().catch(function () {
             return {};
           });
-          show(loading, false);
+        show(loading, false);
           if (!r.ok || data.error) {
             errEl.textContent =
               data && (data.message || data.error)
@@ -2033,9 +2164,9 @@
           var runs = data.runs || [];
           lastSyncRuns = runs;
           if (!Array.isArray(runs) || runs.length === 0) {
-            show(empty, true);
-            return;
-          }
+          show(empty, true);
+          return;
+        }
           body.innerHTML = runs
             .map(function (run, i) {
               var ts = run.at || "";
@@ -2067,13 +2198,13 @@
               );
             })
             .join("");
-          show(table, true);
-        } catch (e) {
-          show(loading, false);
-          errEl.textContent = e.message || "Erreur réseau";
-          show(errEl, true);
-        }
+        show(table, true);
+      } catch (e) {
+        show(loading, false);
+        errEl.textContent = e.message || "Erreur réseau";
+        show(errEl, true);
       }
+    }
 
       async function syncStockNow() {
         var btn = document.getElementById("sync-stock-now");
@@ -2188,22 +2319,22 @@
             await loadStock();
             await loadSyncRuns();
           }
-        } catch (e) {
+      } catch (e) {
           setApiBanner(e.message || "Erreur test SKU");
         } finally {
           btn.disabled = false;
-        }
       }
+    }
 
-      function activateTab(name) {
+    function activateTab(name) {
         ["stock", "sync-runs", "slack"].forEach(function (t) {
           var btn = document.getElementById("tab-" + t);
           var section = document.getElementById("section-" + t);
           var active = t === name;
-          if (btn) btn.classList.toggle("active", active);
-          if (section) section.classList.toggle("active", active);
-        });
-      }
+        if (btn) btn.classList.toggle("active", active);
+        if (section) section.classList.toggle("active", active);
+      });
+    }
 
       function applySlackFormDisabledState() {
         var ov = document.getElementById("slack-overrides-active");
@@ -2306,12 +2437,110 @@
         await loadSlackSettingsPanel();
       }
 
-      function escapeHtml(s) {
-        if (s == null) return "";
-        var div = document.createElement("div");
-        div.textContent = s;
-        return div.innerHTML;
+      function formatSyncScheduleLast(iso) {
+        if (!iso || typeof iso !== "string") return "Jamais enregistré côté serveur";
+        var t = Date.parse(iso);
+        if (!Number.isFinite(t)) return iso;
+        try {
+          return "Dernière sync UK : " + new Date(t).toLocaleString();
+        } catch (e) {
+          return iso;
+        }
       }
+
+      async function loadSyncSchedulePanel() {
+        var loading = document.getElementById("sync-schedule-loading");
+        var panel = document.getElementById("sync-schedule-panel");
+        var errEl = document.getElementById("sync-schedule-error");
+        var hint = document.getElementById("sync-sched-hint-line");
+        if (loading) loading.style.display = "";
+        if (panel) panel.style.display = "none";
+        if (errEl) {
+          errEl.style.display = "none";
+          errEl.textContent = "";
+        }
+        try {
+          var r = await apiFetch(functionsBase + "/sync-schedule-settings", {
+            method: "GET",
+            cache: "no-store",
+          });
+          if (r.status === 401) return;
+          var data = await r.json();
+          if (!r.ok)
+            throw new Error(data.error || "HTTP " + r.status);
+          if (hint && data.cronTickMinutes != null) {
+            hint.textContent =
+              "Netlify réveille les fonctions toutes les " +
+              data.cronTickMinutes +
+              " min ; une sync complète ne s’exécute que si l’intervalle choisi est écoulé (et si la ligne est active). Plage autorisée : " +
+              (data.defaults && data.defaults.minMinutes != null
+                ? data.defaults.minMinutes
+                : 5) +
+              " et " +
+              (data.defaults && data.defaults.maxMinutes != null
+                ? data.defaults.maxMinutes
+                : 10080) +
+              " minutes.";
+          }
+          var st = data.stored || {};
+          var pe = document.getElementById("sync-sched-prod-enabled");
+          var se = document.getElementById("sync-sched-staging-enabled");
+          var pm = document.getElementById("sync-sched-prod-minutes");
+          var sm = document.getElementById("sync-sched-staging-minutes");
+          if (pe) pe.checked = !!st.prodEnabled;
+          if (se) se.checked = !!st.stagingEnabled;
+          if (pm) pm.value = String(st.prodIntervalMinutes ?? 120);
+          if (sm) sm.value = String(st.stagingIntervalMinutes ?? 120);
+          var lp = document.getElementById("sync-sched-last-prod");
+          var ls = document.getElementById("sync-sched-last-staging");
+          var lr = st.lastRun || {};
+          if (lp) lp.textContent = formatSyncScheduleLast(lr.prod);
+          if (ls) ls.textContent = formatSyncScheduleLast(lr.staging);
+          if (loading) loading.style.display = "none";
+          if (panel) panel.style.display = "";
+        } catch (e) {
+          if (loading) loading.style.display = "none";
+          if (errEl) {
+            errEl.style.display = "block";
+            errEl.textContent =
+              e.message || "Impossible de charger la planification serveur";
+          }
+        }
+      }
+
+      async function saveSyncScheduleFromForm() {
+        var pe = document.getElementById("sync-sched-prod-enabled");
+        var se = document.getElementById("sync-sched-staging-enabled");
+        var pm = document.getElementById("sync-sched-prod-minutes");
+        var sm = document.getElementById("sync-sched-staging-minutes");
+        var body = {
+          prodEnabled: pe && pe.checked,
+          stagingEnabled: se && se.checked,
+          prodIntervalMinutes: pm ? Number(pm.value) : 120,
+          stagingIntervalMinutes: sm ? Number(sm.value) : 120,
+        };
+        var r = await apiFetch(functionsBase + "/sync-schedule-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (r.status === 401) return;
+        var data = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok)
+          throw new Error(data.error || "HTTP " + r.status);
+        setApiBanner("Planification serveur enregistrée.");
+        await loadSyncSchedulePanel();
+        await loadSyncRuns();
+      }
+
+    function escapeHtml(s) {
+      if (s == null) return "";
+        var div = document.createElement("div");
+      div.textContent = s;
+      return div.innerHTML;
+    }
 
       document
         .getElementById("env-select")
@@ -2364,7 +2593,7 @@
           if (sel) sel.value = currentTarget;
           applyContextVisuals();
           hideOverviewOverlay();
-          loadStock();
+    loadStock();
           loadSyncRuns();
         });
       }
@@ -2394,10 +2623,46 @@
       document
         .getElementById("refresh-sync-runs")
         .addEventListener("click", loadSyncRuns);
+      var syncSchedSaveBtn = document.getElementById("sync-schedule-save");
+      if (syncSchedSaveBtn) {
+        syncSchedSaveBtn.addEventListener("click", function () {
+          void saveSyncScheduleFromForm().catch(function (e) {
+            setApiBanner(e.message || "Erreur planification serveur");
+          });
+        });
+      }
+      var syncUkFullBtn = document.getElementById("sync-uk-full-now");
+      if (syncUkFullBtn) {
+        syncUkFullBtn.addEventListener("click", async function () {
+          syncUkFullBtn.disabled = true;
+          try {
+            var r = await apiFetch(
+              functionsBase +
+                "/sync-uk-now?" +
+                targetQuery(),
+              { method: "POST", cache: "no-store" },
+            );
+            if (r.status === 401) return;
+            var txt = await r.text();
+            if (!r.ok) {
+              setApiBanner("Sync UK complète : HTTP " + r.status + " — " + txt.slice(0, 200));
+              return;
+            }
+            setApiBanner(txt.slice(0, 400));
+            await loadSyncSchedulePanel();
+            await loadSyncRuns();
+          } catch (e) {
+            setApiBanner(e.message || "Erreur sync UK complète");
+          } finally {
+            syncUkFullBtn.disabled = false;
+          }
+        });
+      }
       document
         .getElementById("tab-stock")
         .addEventListener("click", function () {
           activateTab("stock");
+          void loadSyncSchedulePanel();
         });
       document
         .getElementById("tab-sync-runs")
@@ -2559,6 +2824,6 @@
 
       applyAllAutoSyncConfigs();
       bootstrapSession();
-    </script>
-  </body>
+  </script>
+</body>
 </html>

@@ -11,6 +11,7 @@ import { ShopifyService } from "../../src/services/shopifyService";
 import { WmsService } from "../../src/services/wmsService";
 import { guardDashboardAuth } from "../../src/utils/dashboardAuth";
 import { logger } from "../../src/utils/logger";
+import { bindNetlifyBlobsForLambda } from "../../src/utils/netlifyBlobsLambda";
 import { sendSlackRunReport } from "../../src/utils/slack";
 import {
   groupShopifyLevelsByNormalizedSku,
@@ -25,6 +26,7 @@ const CORS_HEADERS = {
 };
 
 export const handler: Handler = async (event) => {
+  bindNetlifyBlobsForLambda(event);
   const authFail = guardDashboardAuth(event, CORS_HEADERS);
   if (authFail) return authFail;
 

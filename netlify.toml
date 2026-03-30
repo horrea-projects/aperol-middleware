@@ -12,11 +12,13 @@
 [functions]
   node_bundler = "esbuild"
 
+# Réveil fréquent : l’intervalle réel entre deux sync **complètes** est piloté depuis le dashboard
+# (`sync-schedule-settings`, défaut 120 min). Ne pas mettre un tick plus rare que SYNC_SCHEDULE_MIN_MINUTES (5).
 [functions."sync-uk"]
-  schedule = "*/10 * * * *"
+  schedule = "*/5 * * * *"
 
 [functions."sync-uk-staging"]
-  schedule = "*/10 * * * *"
+  schedule = "*/5 * * * *"
 
 # Rapport Slack « hier » (fuseau : SLACK_DAILY_DIGEST_TIMEZONE, défaut Europe/Paris).
 # 6h UTC ≈ 7h Paris (hiver) ; ajuster selon l’heure souhaitée côté équipe.

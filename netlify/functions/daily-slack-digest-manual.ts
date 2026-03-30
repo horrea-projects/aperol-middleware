@@ -1,5 +1,6 @@
 import type { Handler } from "@netlify/functions";
 import { sendDailySlackDigestFromEnv } from "../../src/utils/dailySlackDigest";
+import { bindNetlifyBlobsForLambda } from "../../src/utils/netlifyBlobsLambda";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +34,7 @@ function isAuthorized(event: Parameters<Handler>[0]): boolean {
  * Si `DAILY_DIGEST_HTTP_SECRET` est défini, envoyer `Authorization: Bearer <secret>` ou `X-Daily-Digest-Secret: <secret>`.
  */
 export const handler: Handler = async (event) => {
+  bindNetlifyBlobsForLambda(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: { ...CORS, "Access-Control-Allow-Headers": "Authorization, X-Daily-Digest-Secret, Content-Type" }, body: "" };
   }

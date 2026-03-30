@@ -1,6 +1,7 @@
 import type { Handler } from "@netlify/functions";
 import { parseSyncTarget } from "../../src/config";
 import { guardDashboardAuth } from "../../src/utils/dashboardAuth";
+import { bindNetlifyBlobsForLambda } from "../../src/utils/netlifyBlobsLambda";
 import { deleteSyncRun, listSyncRuns } from "../../src/utils/syncRunHistory";
 
 const CORS_HEADERS = {
@@ -10,6 +11,7 @@ const CORS_HEADERS = {
 };
 
 export const handler: Handler = async (event) => {
+  bindNetlifyBlobsForLambda(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 204, headers: CORS_HEADERS, body: "" };
   }
