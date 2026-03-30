@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --noEmit",
     "dev": "netlify dev",
     "netlify:build": "npm run build",
     "shopify:auth-check": "node scripts/shopify_auth_check.mjs",

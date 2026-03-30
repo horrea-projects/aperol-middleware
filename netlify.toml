@@ -6,6 +6,8 @@
 
 [build.environment]
   NPM_CONFIG_PRODUCTION = "false"
+  # Valeurs souvent « publiques » ou non sensibles, mais déclarent des faux positifs si elles = l’UI Netlify
+  SECRETS_SCAN_OMIT_KEYS = "BYRD_BASE_URL,LOG_FILE_PATH,STAGING_SHOPIFY_STORE_DOMAIN"
 
 [functions]
   node_bundler = "esbuild"

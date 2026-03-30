@@ -154,7 +154,7 @@ Documentation : [Byrd Developer Docs](https://developers.getbyrd.com/docs/gettin
 | ------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `BYRD_API_KEY`      | Clé API (ex. `bk_...`). **Ne pas commiter** — à mettre uniquement dans les variables d’environnement Netlify. |
 | `BYRD_API_SECRET`   | Secret API (ex. `bs_...`). **Ne pas commiter** — idem.                                                        |
-| `BYRD_BASE_URL`     | (Optionnel) Base de l’API. Défaut : `https://api.getbyrd.com`.                                                |
+| `BYRD_BASE_URL`     | (Optionnel) Base de l’API. Si vide : défaut construit dans `config.ts` (hôte public documenté par GetByrd).   |
 | `BYRD_WAREHOUSE_ID` | (Optionnel) ID de l’entrepôt UK dans Byrd. Si un seul entrepôt, il peut être déduit.                          |
 
 L’authentification Byrd se fait via **JWT** : le middleware appelle `POST /v2/login` avec `username` = `BYRD_API_KEY` et `password` = `BYRD_API_SECRET`, puis utilise le token dans l’en-tête `Authorization: Bearer <token>` pour les appels produits (stocks).
