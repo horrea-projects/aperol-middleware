@@ -1,5 +1,11 @@
 [build]
+  # TypeScript + @types + @netlify/functions sont en dependencies pour que `tsc` existe
+  # même si l’UI Netlify définit NODE_ENV=production (sinon devDependencies ignorées → échec du build).
+  command = "npm run build"
   publish = "public"
+
+[build.environment]
+  NPM_CONFIG_PRODUCTION = "false"
 
 [functions]
   node_bundler = "esbuild"

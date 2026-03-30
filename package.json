@@ -13,12 +13,10 @@
   },
   "dependencies": {
     "@netlify/blobs": "^10.7.4",
-    "cross-fetch": "^4.0.0",
-    "dotenv": "^16.4.5"
-  },
-  "devDependencies": {
     "@netlify/functions": "^2.8.0",
     "@types/node": "^25.5.0",
+    "cross-fetch": "^4.0.0",
+    "dotenv": "^16.4.5",
     "typescript": "^5.7.0"
   }
 }
