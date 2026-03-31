@@ -89,7 +89,16 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod === "PUT") {
     try {
       const raw = event.body ? (JSON.parse(event.body) as Record<string, unknown>) : {};
-      const overridesActive = Boolean(raw.overridesActive);
+      const prodParsed = parseTargetBlock(raw.prod);
+      const stagingParsed = parseTargetBlock(raw.staging);
+      const overridesExplicitFalse =
+        raw.overridesActive === false || raw.overridesActive === "false";
+      /* `Boolean(undefined)` serait false : si prod+staging sont fournis, c’est une sauvegarde dashboard. */
+      const overridesActive = overridesExplicitFalse
+        ? false
+        : prodParsed && stagingParsed
+          ? true
+          : Boolean(raw.overridesActive);
 
       if (!overridesActive) {
         const cur = await loadSlackSettings();
@@ -112,11 +121,16 @@ export const handler: Handler = async (event) => {
         await saveSlackSettings(nextOff);
         invalidateSlackPolicyCache();
         const effective = await effectivePair();
+        const env = {
+          prod: getSlackEnvBaseline("prod"),
+          staging: getSlackEnvBaseline("staging"),
+        };
         return {
           statusCode: 200,
           headers: CORS,
           body: JSON.stringify({
             ok: true,
+            env,
             stored: nextOff,
             effective,
             webhooks: {
@@ -127,8 +141,8 @@ export const handler: Handler = async (event) => {
         };
       }
 
-      let prod = parseTargetBlock(raw.prod);
-      let staging = parseTargetBlock(raw.staging);
+      let prod = prodParsed;
+      let staging = stagingParsed;
       const prev = await loadSlackSettings();
       if (!prod && prev) prod = prev.prod;
       if (!staging && prev) staging = prev.staging;
@@ -151,11 +165,16 @@ export const handler: Handler = async (event) => {
       await saveSlackSettings(next);
       invalidateSlackPolicyCache();
       const effective = await effectivePair();
+      const env = {
+        prod: getSlackEnvBaseline("prod"),
+        staging: getSlackEnvBaseline("staging"),
+      };
       return {
         statusCode: 200,
         headers: CORS,
         body: JSON.stringify({
           ok: true,
+          env,
           stored: next,
           effective,
           webhooks: {

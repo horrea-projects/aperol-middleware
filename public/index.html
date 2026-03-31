@@ -2428,6 +2428,67 @@
 
       var lastSlackPayload = null;
 
+      /** Met à jour le brouillon et l’UI à partir d’un GET ou PUT (évite un GET tout de suite après sauvegarde : lecture Blobs parfois en retard). */
+      function hydrateSlackFromApiData(data) {
+        if (!data) return;
+        lastSlackPayload = {
+          env:
+            data.env ||
+            (lastSlackPayload && lastSlackPayload.env) ||
+            { prod: {}, staging: {} },
+          stored:
+            "stored" in data
+              ? data.stored
+              : lastSlackPayload && lastSlackPayload.stored,
+          effective:
+            data.effective ||
+            (lastSlackPayload && lastSlackPayload.effective),
+          webhooks:
+            data.webhooks ||
+            (lastSlackPayload && lastSlackPayload.webhooks),
+        };
+        var hasDash = Boolean(
+          lastSlackPayload.stored && lastSlackPayload.stored.overridesActive,
+        );
+        slackDraft.overridesActive = hasDash;
+        var ep = (lastSlackPayload.env && lastSlackPayload.env.prod) || {};
+        var es = (lastSlackPayload.env && lastSlackPayload.env.staging) || {};
+        var st = lastSlackPayload.stored;
+        if (hasDash && st && st.prod && st.staging) {
+          slackDraft.prod = {
+            notify: !!st.prod.notificationsEnabled,
+            perRun: !!st.prod.perRunReportsEnabled,
+            digest: !!st.prod.dailyDigestEnabled,
+          };
+          slackDraft.staging = {
+            notify: !!st.staging.notificationsEnabled,
+            perRun: !!st.staging.perRunReportsEnabled,
+            digest: !!st.staging.dailyDigestEnabled,
+          };
+        } else {
+          slackDraft.prod = {
+            notify: !!ep.notifications,
+            perRun: !!ep.perRunReports,
+            digest: !!ep.dailyDigest,
+          };
+          slackDraft.staging = {
+            notify: !!es.notifications,
+            perRun: !!es.perRunReports,
+            digest: !!es.dailyDigest,
+          };
+        }
+        applySlackDraftToForm();
+        var wh = document.getElementById("slack-webhook-status");
+        if (wh && lastSlackPayload.webhooks) {
+          wh.textContent =
+            "prod : " +
+            (lastSlackPayload.webhooks.prodConfigured ? "oui" : "non") +
+            " · staging : " +
+            (lastSlackPayload.webhooks.stagingConfigured ? "oui" : "non") +
+            " (SLACK_WEBHOOK_URL / STAGING_SLACK_WEBHOOK_URL)";
+        }
+      }
+
       async function loadSlackSettingsPanel() {
         var loading = document.getElementById("slack-settings-loading");
         var panel = document.getElementById("slack-settings-panel");
@@ -2445,47 +2506,9 @@
           if (r.status === 401) return;
           var data = await r.json();
           if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
-          lastSlackPayload = data;
           if (loading) loading.style.display = "none";
           if (panel) panel.style.display = "";
-          var hasDash =
-            data.stored && data.stored.overridesActive === true;
-          slackDraft.overridesActive = !!hasDash;
-          var ep = (data.env && data.env.prod) || {};
-          var es = (data.env && data.env.staging) || {};
-          if (hasDash && data.stored && data.stored.prod && data.stored.staging) {
-            slackDraft.prod = {
-              notify: !!data.stored.prod.notificationsEnabled,
-              perRun: !!data.stored.prod.perRunReportsEnabled,
-              digest: !!data.stored.prod.dailyDigestEnabled,
-            };
-            slackDraft.staging = {
-              notify: !!data.stored.staging.notificationsEnabled,
-              perRun: !!data.stored.staging.perRunReportsEnabled,
-              digest: !!data.stored.staging.dailyDigestEnabled,
-            };
-          } else {
-            slackDraft.prod = {
-              notify: !!ep.notifications,
-              perRun: !!ep.perRunReports,
-              digest: !!ep.dailyDigest,
-            };
-            slackDraft.staging = {
-              notify: !!es.notifications,
-              perRun: !!es.perRunReports,
-              digest: !!es.dailyDigest,
-            };
-          }
-          applySlackDraftToForm();
-          var wh = document.getElementById("slack-webhook-status");
-          if (wh && data.webhooks) {
-            wh.textContent =
-              "prod : " +
-              (data.webhooks.prodConfigured ? "oui" : "non") +
-              " · staging : " +
-              (data.webhooks.stagingConfigured ? "oui" : "non") +
-              " (SLACK_WEBHOOK_URL / STAGING_SLACK_WEBHOOK_URL)";
-          }
+          hydrateSlackFromApiData(data);
         } catch (e) {
           if (loading) loading.style.display = "none";
           if (errEl) {
@@ -2522,8 +2545,8 @@
         });
         if (!r.ok)
           throw new Error(data.error || "Enregistrement HTTP " + r.status);
+        hydrateSlackFromApiData(data);
         setApiBanner("Réglages Slack enregistrés.");
-        await loadSlackSettingsPanel();
       }
 
       async function saveSlackSettingsResetToEnv() {
@@ -2538,8 +2561,8 @@
         });
         if (!r.ok)
           throw new Error(data.error || "Enregistrement HTTP " + r.status);
+        hydrateSlackFromApiData(data);
         setApiBanner("Slack : priorité .env / Netlify.");
-        await loadSlackSettingsPanel();
       }
 
       function formatSyncScheduleLast(iso) {
