@@ -1,4 +1,5 @@
 import "./loadEnvFile";
+import type { SyncTarget } from "../config";
 import { getConfig } from "../config";
 import { httpRequest } from "./http";
 import { logger } from "./logger";
@@ -12,10 +13,11 @@ export type SlackIncomingPayload = {
 };
 
 export async function postSlackIncomingWebhook(
+  target: SyncTarget,
   webhookUrl: string,
   payload: SlackIncomingPayload,
 ): Promise<void> {
-  const p = await resolveSlackPolicy();
+  const p = await resolveSlackPolicy(target);
   if (!p.notifications || !p.dailyDigest) return;
   if (!webhookUrl.trim()) return;
   try {
@@ -41,7 +43,13 @@ function slackEnabled(): boolean {
 }
 
 export async function sendSlackRunReport(text: string, meta?: Record<string, unknown>): Promise<void> {
-  const p = await resolveSlackPolicy();
+  let target: SyncTarget;
+  try {
+    target = getConfig().target;
+  } catch {
+    return;
+  }
+  const p = await resolveSlackPolicy(target);
   if (!p.notifications || !p.perRunReports) return;
   if (!slackEnabled()) return;
 

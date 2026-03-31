@@ -955,6 +955,17 @@
                 Planification sync complète (serveur Netlify)
               </h3>
               <p
+                id="sync-sched-env-title"
+                style="
+                  margin: 0 0 0.35rem 0;
+                  font-size: 0.88rem;
+                  font-weight: 500;
+                  color: var(--text);
+                "
+              >
+                —
+              </p>
+              <p
                 id="sync-sched-hint-line"
                 style="margin: 0 0 0.65rem 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4"
               >
@@ -967,90 +978,37 @@
                 style="display: none"
               ></div>
               <div id="sync-schedule-panel" style="display: none">
-                <div
-                  style="
-                    display: grid;
-                    gap: 0.55rem 1rem;
-                    grid-template-columns: 1fr 1fr;
-                    align-items: start;
-                    margin-bottom: 0.65rem;
-                  "
-                >
-                  <div>
-                    <div
-                      style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.25rem"
+                <div style="margin-bottom: 0.65rem; max-width: 420px">
+                  <label
+                    style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem"
+                  >
+                    <input type="checkbox" id="sync-sched-enabled" />
+                    Planifié actif (sync UK complète pour cet env.)
+                  </label>
+                  <div
+                    class="auto-sync-row"
+                    style="margin-top: 0.35rem; flex-wrap: wrap"
+                  >
+                    <span style="font-size: 0.85rem; color: var(--muted)"
+                      >Minutes entre deux runs</span
                     >
-                      Production · <code>sync-uk</code>
-                    </div>
-                    <label
-                      style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem"
+                    <input
+                      type="number"
+                      id="sync-sched-minutes"
+                      min="5"
+                      step="1"
+                      value="120"
+                      style="width: 5rem"
+                    />
+                    <span style="font-size: 0.78rem; color: var(--muted)"
+                      >min</span
                     >
-                      <input type="checkbox" id="sync-sched-prod-enabled" />
-                      Planifié actif
-                    </label>
-                    <div
-                      class="auto-sync-row"
-                      style="margin-top: 0.35rem; flex-wrap: wrap"
-                    >
-                      <span style="font-size: 0.85rem; color: var(--muted)"
-                        >Min entre deux runs</span
-                      >
-                      <input
-                        type="number"
-                        id="sync-sched-prod-minutes"
-                        min="5"
-                        step="1"
-                        value="120"
-                        style="width: 5rem"
-                      />
-                      <span style="font-size: 0.78rem; color: var(--muted)"
-                        >min</span
-                      >
-                    </div>
-                    <div
-                      id="sync-sched-last-prod"
-                      style="font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem"
-                    >
-                      —
-                    </div>
                   </div>
-                  <div>
-                    <div
-                      style="font-size: 0.78rem; color: var(--muted); margin-bottom: 0.25rem"
-                    >
-                      Staging · <code>sync-uk-staging</code>
-                    </div>
-                    <label
-                      style="font-size: 0.85rem; display: flex; align-items: center; gap: 0.35rem"
-                    >
-                      <input type="checkbox" id="sync-sched-staging-enabled" />
-                      Planifié actif
-                    </label>
-                    <div
-                      class="auto-sync-row"
-                      style="margin-top: 0.35rem; flex-wrap: wrap"
-                    >
-                      <span style="font-size: 0.85rem; color: var(--muted)"
-                        >Min entre deux runs</span
-                      >
-                      <input
-                        type="number"
-                        id="sync-sched-staging-minutes"
-                        min="5"
-                        step="1"
-                        value="120"
-                        style="width: 5rem"
-                      />
-                      <span style="font-size: 0.78rem; color: var(--muted)"
-                        >min</span
-                      >
-                    </div>
-                    <div
-                      id="sync-sched-last-staging"
-                      style="font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem"
-                    >
-                      —
-                    </div>
+                  <div
+                    id="sync-sched-last"
+                    style="font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem"
+                  >
+                    —
                   </div>
                 </div>
                 <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center">
@@ -1185,12 +1143,16 @@
                 margin: 0 0 0.75rem;
               "
             >
-              Sans cocher l’option ci‑dessous, les envois suivent uniquement
-              <strong>.env</strong> / <strong>Netlify</strong>
-              (<code>SLACK_NOTIFICATIONS</code>, etc.). Avec le tableau de bord, les
-              réglages sont stockés sur l’instance (Blobs Netlify ou
-              <code>data/slack-settings.json</code> en local) et s’appliquent sans
-              redéploiement.
+              <span id="slack-env-scope-line"
+                >Réglages pour l’environnement sélectionné dans le menu
+                <strong>Environnement</strong> (Production ou Staging). Sans cocher
+                l’option ci‑dessous, chaque cible suit
+                <strong>.env</strong> / <strong>Netlify</strong> (
+                <code>SLACK_*</code> pour la prod,
+                <code>STAGING_SLACK_*</code> en priorité pour le staging si défini).
+                Avec le dashboard, les paires prod/staging sont stockées sur l’instance
+                (Blobs Netlify ou fichier local) sans redéploiement.
+              </span>
             </p>
             <div id="slack-settings-loading" class="loading">Chargement…</div>
             <div
@@ -1319,6 +1281,119 @@
       const autoSyncTimers = {};
       const autoSyncRunning = {};
       const AUTO_SYNC_KEYS = ["prod-stock", "staging-stock"];
+
+      /** Brouillon planification serveur (prod + staging) — le formulaire n’affiche que l’env courant. */
+      var syncScheduleDraft = {
+        prodEnabled: true,
+        stagingEnabled: true,
+        prodIntervalMinutes: 120,
+        stagingIntervalMinutes: 120,
+        lastRun: { prod: null, staging: null },
+      };
+
+      /** Brouillon Slack (prod + staging). */
+      var slackDraft = {
+        overridesActive: false,
+        prod: { notify: true, perRun: true, digest: true },
+        staging: { notify: true, perRun: true, digest: true },
+      };
+
+      function flushSyncScheduleDraftFromForm() {
+        var e = document.getElementById("sync-sched-enabled");
+        var m = document.getElementById("sync-sched-minutes");
+        if (currentTarget === "prod") {
+          if (e) syncScheduleDraft.prodEnabled = e.checked;
+          if (m) {
+            var v = Number(m.value);
+            syncScheduleDraft.prodIntervalMinutes = Number.isFinite(v) ? Math.floor(v) : 120;
+          }
+        } else {
+          if (e) syncScheduleDraft.stagingEnabled = e.checked;
+          if (m) {
+            var v2 = Number(m.value);
+            syncScheduleDraft.stagingIntervalMinutes = Number.isFinite(v2) ? Math.floor(v2) : 120;
+          }
+        }
+      }
+
+      function applySyncScheduleFormFromDraft() {
+        var e = document.getElementById("sync-sched-enabled");
+        var m = document.getElementById("sync-sched-minutes");
+        var lastEl = document.getElementById("sync-sched-last");
+        var title = document.getElementById("sync-sched-env-title");
+        var lr = syncScheduleDraft.lastRun || { prod: null, staging: null };
+        if (currentTarget === "prod") {
+          if (title)
+            title.textContent =
+              "Production — fonction planifiée « sync-uk »";
+          if (e) e.checked = !!syncScheduleDraft.prodEnabled;
+          if (m) m.value = String(syncScheduleDraft.prodIntervalMinutes);
+          if (lastEl) lastEl.textContent = formatSyncScheduleLast(lr.prod);
+        } else {
+          if (title)
+            title.textContent =
+              "Staging — fonction planifiée « sync-uk-staging »";
+          if (e) e.checked = !!syncScheduleDraft.stagingEnabled;
+          if (m) m.value = String(syncScheduleDraft.stagingIntervalMinutes);
+          if (lastEl) lastEl.textContent = formatSyncScheduleLast(lr.staging);
+        }
+      }
+
+      function flushSlackDraftFromForm() {
+        var ov = document.getElementById("slack-overrides-active");
+        var n = document.getElementById("slack-notify-master");
+        var pr = document.getElementById("slack-per-run");
+        var dg = document.getElementById("slack-daily-digest");
+        var slot = currentTarget === "prod" ? slackDraft.prod : slackDraft.staging;
+        slot.notify = n && n.checked;
+        slot.perRun = pr && pr.checked;
+        slot.digest = dg && dg.checked;
+        slackDraft.overridesActive = ov && ov.checked;
+      }
+
+      function applySlackDraftToForm() {
+        var ov = document.getElementById("slack-overrides-active");
+        var n = document.getElementById("slack-notify-master");
+        var pr = document.getElementById("slack-per-run");
+        var dg = document.getElementById("slack-daily-digest");
+        var slot = currentTarget === "prod" ? slackDraft.prod : slackDraft.staging;
+        if (ov) ov.checked = slackDraft.overridesActive;
+        if (n) n.checked = !!slot.notify;
+        if (pr) pr.checked = !!slot.perRun;
+        if (dg) dg.checked = !!slot.digest;
+        var scope = document.getElementById("slack-env-scope-line");
+        if (scope) {
+          scope.textContent =
+            "Réglages pour : " +
+            (currentTarget === "prod" ? "Production" : "Staging") +
+            " (menu Environnement ci‑dessus). Sans cocher « Contrôler depuis le dashboard », la prod suit SLACK_* et le staging STAGING_SLACK_* (sinon SLACK_*). Stockage Blob / fichier local si le dashboard est actif.";
+        }
+        applySlackFormDisabledState();
+        refreshSlackEffectiveLineFromPayload();
+      }
+
+      function refreshSlackEffectiveLineFromPayload() {
+        if (!lastSlackPayload || !lastSlackPayload.effective) return;
+        var eff = document.getElementById("slack-effective-line");
+        if (!eff) return;
+        var hasDash = !!(lastSlackPayload.stored && lastSlackPayload.stored.overridesActive);
+        var effT =
+          currentTarget === "prod"
+            ? lastSlackPayload.effective.prod
+            : lastSlackPayload.effective.staging;
+        var src = hasDash ? "dashboard" : ".env / Netlify";
+        eff.textContent =
+          "Effet actuel (" +
+          (currentTarget === "prod" ? "prod" : "staging") +
+          ") : " +
+          src +
+          " — master " +
+          (effT && effT.notifications ? "oui" : "non") +
+          ", après sync " +
+          (effT && effT.perRunReports ? "oui" : "non") +
+          ", digest " +
+          (effT && effT.dailyDigest ? "oui" : "non");
+      }
 
       function apiFetch(url, init) {
         init = init || {};
@@ -1836,10 +1911,14 @@
       }
 
       function switchEnv(target) {
+        flushSyncScheduleDraftFromForm();
+        flushSlackDraftFromForm();
         currentTarget = target === "staging" ? "staging" : "prod";
         var sel = document.getElementById("env-select");
         if (sel) sel.value = currentTarget;
         applyContextVisuals();
+        applySyncScheduleFormFromDraft();
+        applySlackDraftToForm();
         loadStock();
         loadSyncRuns();
       }
@@ -2369,42 +2448,44 @@
           lastSlackPayload = data;
           if (loading) loading.style.display = "none";
           if (panel) panel.style.display = "";
-          var ov = document.getElementById("slack-overrides-active");
-          var n = document.getElementById("slack-notify-master");
-          var pr = document.getElementById("slack-per-run");
-          var dg = document.getElementById("slack-daily-digest");
           var hasDash =
-            data.stored && Object.prototype.hasOwnProperty.call(data.stored, "overridesActive")
-              ? data.stored.overridesActive
-              : false;
-          if (ov) ov.checked = !!hasDash;
-          if (hasDash && data.stored) {
-            if (n) n.checked = !!data.stored.notificationsEnabled;
-            if (pr) pr.checked = !!data.stored.perRunReportsEnabled;
-            if (dg) dg.checked = !!data.stored.dailyDigestEnabled;
+            data.stored && data.stored.overridesActive === true;
+          slackDraft.overridesActive = !!hasDash;
+          var ep = (data.env && data.env.prod) || {};
+          var es = (data.env && data.env.staging) || {};
+          if (hasDash && data.stored && data.stored.prod && data.stored.staging) {
+            slackDraft.prod = {
+              notify: !!data.stored.prod.notificationsEnabled,
+              perRun: !!data.stored.prod.perRunReportsEnabled,
+              digest: !!data.stored.prod.dailyDigestEnabled,
+            };
+            slackDraft.staging = {
+              notify: !!data.stored.staging.notificationsEnabled,
+              perRun: !!data.stored.staging.perRunReportsEnabled,
+              digest: !!data.stored.staging.dailyDigestEnabled,
+            };
           } else {
-            if (n) n.checked = !!data.env.notifications;
-            if (pr) pr.checked = !!data.env.perRunReports;
-            if (dg) dg.checked = !!data.env.dailyDigest;
+            slackDraft.prod = {
+              notify: !!ep.notifications,
+              perRun: !!ep.perRunReports,
+              digest: !!ep.dailyDigest,
+            };
+            slackDraft.staging = {
+              notify: !!es.notifications,
+              perRun: !!es.perRunReports,
+              digest: !!es.dailyDigest,
+            };
           }
+          applySlackDraftToForm();
           var wh = document.getElementById("slack-webhook-status");
-          if (wh)
-            wh.textContent = data.webhookConfigured
-              ? "oui"
-              : "non — ajouter SLACK_WEBHOOK_URL";
-          var eff = document.getElementById("slack-effective-line");
-          if (eff) {
-            eff.textContent =
-              "Effet actuel : " +
-              (data.source === "dashboard" ? "dashboard" : ".env / Netlify") +
-              " — master " +
-              (data.effective.notifications ? "oui" : "non") +
-              ", après sync " +
-              (data.effective.perRunReports ? "oui" : "non") +
-              ", digest " +
-              (data.effective.dailyDigest ? "oui" : "non");
+          if (wh && data.webhooks) {
+            wh.textContent =
+              "prod : " +
+              (data.webhooks.prodConfigured ? "oui" : "non") +
+              " · staging : " +
+              (data.webhooks.stagingConfigured ? "oui" : "non") +
+              " (SLACK_WEBHOOK_URL / STAGING_SLACK_WEBHOOK_URL)";
           }
-          applySlackFormDisabledState();
         } catch (e) {
           if (loading) loading.style.display = "none";
           if (errEl) {
@@ -2415,12 +2496,20 @@
         }
       }
 
-      async function saveSlackSettings(overridesActive, snapshot) {
+      async function saveSlackSettingsFromDraft() {
+        flushSlackDraftFromForm();
         var body = {
-          overridesActive: !!overridesActive,
-          notificationsEnabled: snapshot.notify,
-          perRunReportsEnabled: snapshot.perRun,
-          dailyDigestEnabled: snapshot.digest,
+          overridesActive: slackDraft.overridesActive,
+          prod: {
+            notificationsEnabled: slackDraft.prod.notify,
+            perRunReportsEnabled: slackDraft.prod.perRun,
+            dailyDigestEnabled: slackDraft.prod.digest,
+          },
+          staging: {
+            notificationsEnabled: slackDraft.staging.notify,
+            perRunReportsEnabled: slackDraft.staging.perRun,
+            dailyDigestEnabled: slackDraft.staging.digest,
+          },
         };
         var r = await apiFetch(functionsBase + "/slack-settings", {
           method: "PUT",
@@ -2434,6 +2523,22 @@
         if (!r.ok)
           throw new Error(data.error || "Enregistrement HTTP " + r.status);
         setApiBanner("Réglages Slack enregistrés.");
+        await loadSlackSettingsPanel();
+      }
+
+      async function saveSlackSettingsResetToEnv() {
+        var r = await apiFetch(functionsBase + "/slack-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ overridesActive: false }),
+        });
+        if (r.status === 401) return;
+        var data = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok)
+          throw new Error(data.error || "Enregistrement HTTP " + r.status);
+        setApiBanner("Slack : priorité .env / Netlify.");
         await loadSlackSettingsPanel();
       }
 
@@ -2483,19 +2588,13 @@
               " minutes.";
           }
           var st = data.stored || {};
-          var pe = document.getElementById("sync-sched-prod-enabled");
-          var se = document.getElementById("sync-sched-staging-enabled");
-          var pm = document.getElementById("sync-sched-prod-minutes");
-          var sm = document.getElementById("sync-sched-staging-minutes");
-          if (pe) pe.checked = !!st.prodEnabled;
-          if (se) se.checked = !!st.stagingEnabled;
-          if (pm) pm.value = String(st.prodIntervalMinutes ?? 120);
-          if (sm) sm.value = String(st.stagingIntervalMinutes ?? 120);
-          var lp = document.getElementById("sync-sched-last-prod");
-          var ls = document.getElementById("sync-sched-last-staging");
-          var lr = st.lastRun || {};
-          if (lp) lp.textContent = formatSyncScheduleLast(lr.prod);
-          if (ls) ls.textContent = formatSyncScheduleLast(lr.staging);
+          syncScheduleDraft.prodEnabled = !!st.prodEnabled;
+          syncScheduleDraft.stagingEnabled = !!st.stagingEnabled;
+          syncScheduleDraft.prodIntervalMinutes = Number(st.prodIntervalMinutes) || 120;
+          syncScheduleDraft.stagingIntervalMinutes =
+            Number(st.stagingIntervalMinutes) || 120;
+          syncScheduleDraft.lastRun = st.lastRun || { prod: null, staging: null };
+          applySyncScheduleFormFromDraft();
           if (loading) loading.style.display = "none";
           if (panel) panel.style.display = "";
         } catch (e) {
@@ -2509,15 +2608,12 @@
       }
 
       async function saveSyncScheduleFromForm() {
-        var pe = document.getElementById("sync-sched-prod-enabled");
-        var se = document.getElementById("sync-sched-staging-enabled");
-        var pm = document.getElementById("sync-sched-prod-minutes");
-        var sm = document.getElementById("sync-sched-staging-minutes");
+        flushSyncScheduleDraftFromForm();
         var body = {
-          prodEnabled: pe && pe.checked,
-          stagingEnabled: se && se.checked,
-          prodIntervalMinutes: pm ? Number(pm.value) : 120,
-          stagingIntervalMinutes: sm ? Number(sm.value) : 120,
+          prodEnabled: !!syncScheduleDraft.prodEnabled,
+          stagingEnabled: !!syncScheduleDraft.stagingEnabled,
+          prodIntervalMinutes: syncScheduleDraft.prodIntervalMinutes,
+          stagingIntervalMinutes: syncScheduleDraft.stagingIntervalMinutes,
         };
         var r = await apiFetch(functionsBase + "/sync-schedule-settings", {
           method: "PUT",
@@ -2588,26 +2684,16 @@
       var openProdBtn = document.getElementById("open-env-prod");
       if (openProdBtn) {
         openProdBtn.addEventListener("click", function () {
-          currentTarget = "prod";
-          var sel = document.getElementById("env-select");
-          if (sel) sel.value = currentTarget;
-          applyContextVisuals();
           hideOverviewOverlay();
-    loadStock();
-          loadSyncRuns();
+          switchEnv("prod");
         });
       }
 
       var openStgBtn = document.getElementById("open-env-staging");
       if (openStgBtn) {
         openStgBtn.addEventListener("click", function () {
-          currentTarget = "staging";
-          var sel = document.getElementById("env-select");
-          if (sel) sel.value = currentTarget;
-          applyContextVisuals();
           hideOverviewOverlay();
-          loadStock();
-          loadSyncRuns();
+          switchEnv("staging");
         });
       }
 
@@ -2692,17 +2778,8 @@
       var slackSave = document.getElementById("slack-settings-save");
       if (slackSave) {
         slackSave.addEventListener("click", async function () {
-          var ov = document.getElementById("slack-overrides-active");
-          var n = document.getElementById("slack-notify-master");
-          var pr = document.getElementById("slack-per-run");
-          var dg = document.getElementById("slack-daily-digest");
-          var snap = {
-            notify: n && n.checked,
-            perRun: pr && pr.checked,
-            digest: dg && dg.checked,
-          };
           try {
-            await saveSlackSettings(ov && ov.checked, snap);
+            await saveSlackSettingsFromDraft();
           } catch (e) {
             setApiBanner(e.message || "Erreur enregistrement Slack");
           }
@@ -2711,16 +2788,8 @@
       var slackReset = document.getElementById("slack-settings-reset");
       if (slackReset) {
         slackReset.addEventListener("click", async function () {
-          var n = document.getElementById("slack-notify-master");
-          var pr = document.getElementById("slack-per-run");
-          var dg = document.getElementById("slack-daily-digest");
-          var snap = {
-            notify: n && n.checked,
-            perRun: pr && pr.checked,
-            digest: dg && dg.checked,
-          };
           try {
-            await saveSlackSettings(false, snap);
+            await saveSlackSettingsResetToEnv();
           } catch (e) {
             setApiBanner(e.message || "Erreur Slack");
           }
@@ -2729,23 +2798,39 @@
 
       function applySlackFormDisabledStateFromDashboardToggle() {
         var ov = document.getElementById("slack-overrides-active");
-        var n = document.getElementById("slack-notify-master");
-        var pr = document.getElementById("slack-per-run");
-        var dg = document.getElementById("slack-daily-digest");
-        if (!ov || !lastSlackPayload) {
+        if (!ov || !lastSlackPayload || !lastSlackPayload.env) {
           applySlackFormDisabledState();
           return;
         }
         if (!ov.checked) {
-          if (n) n.checked = !!lastSlackPayload.env.notifications;
-          if (pr) pr.checked = !!lastSlackPayload.env.perRunReports;
-          if (dg) dg.checked = !!lastSlackPayload.env.dailyDigest;
-        } else {
-          if (n) n.checked = !!lastSlackPayload.effective.notifications;
-          if (pr) pr.checked = !!lastSlackPayload.effective.perRunReports;
-          if (dg) dg.checked = !!lastSlackPayload.effective.dailyDigest;
+          var ep = lastSlackPayload.env.prod || {};
+          var es = lastSlackPayload.env.staging || {};
+          slackDraft.prod = {
+            notify: !!ep.notifications,
+            perRun: !!ep.perRunReports,
+            digest: !!ep.dailyDigest,
+          };
+          slackDraft.staging = {
+            notify: !!es.notifications,
+            perRun: !!es.perRunReports,
+            digest: !!es.dailyDigest,
+          };
+        } else if (lastSlackPayload.effective) {
+          var fp = lastSlackPayload.effective.prod || {};
+          var fs = lastSlackPayload.effective.staging || {};
+          slackDraft.prod = {
+            notify: !!fp.notifications,
+            perRun: !!fp.perRunReports,
+            digest: !!fp.dailyDigest,
+          };
+          slackDraft.staging = {
+            notify: !!fs.notifications,
+            perRun: !!fs.perRunReports,
+            digest: !!fs.dailyDigest,
+          };
         }
-        applySlackFormDisabledState();
+        slackDraft.overridesActive = ov.checked;
+        applySlackDraftToForm();
       }
 
       var syncRunsBody = document.getElementById("sync-runs-body");

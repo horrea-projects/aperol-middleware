@@ -1,17 +1,24 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import type { SyncTarget } from "../config";
 import { logger } from "./logger";
 import { shouldUseNetlifyBlobs } from "./storageBackend";
 
 const BLOB_STORE = "aperol-slack-settings";
 const BLOB_KEY = "v1";
 
-/** Réglages Slack pilotés par le dashboard (priorité sur les variables d’environnement pour cette instance). */
-export interface SlackSettingsPersisted {
-  overridesActive: boolean;
+/** Sous-réglages Slack pour un environnement (prod ou staging). */
+export interface SlackTargetSettingsPersisted {
   notificationsEnabled: boolean;
   perRunReportsEnabled: boolean;
   dailyDigestEnabled: boolean;
+}
+
+/** Réglages Slack pilotés par le dashboard (priorité sur les variables d’environnement pour cette instance). */
+export interface SlackSettingsPersisted {
+  overridesActive: boolean;
+  prod: SlackTargetSettingsPersisted;
+  staging: SlackTargetSettingsPersisted;
   updatedAt: string;
 }
 
@@ -63,15 +70,46 @@ async function writeToFile(data: SlackSettingsPersisted): Promise<void> {
   await fs.writeFile(fp, JSON.stringify(data, null, 2), "utf8");
 }
 
+function normalizeTargetBlock(o: unknown): SlackTargetSettingsPersisted | null {
+  if (!o || typeof o !== "object") return null;
+  const r = o as Record<string, unknown>;
+  return {
+    notificationsEnabled: Boolean(r.notificationsEnabled),
+    perRunReportsEnabled: Boolean(r.perRunReportsEnabled),
+    dailyDigestEnabled: Boolean(r.dailyDigestEnabled),
+  };
+}
+
 function normalizePersisted(o: Record<string, unknown>): SlackSettingsPersisted | null {
   if (typeof o.overridesActive !== "boolean") return null;
-  return {
-    overridesActive: o.overridesActive,
-    notificationsEnabled: Boolean(o.notificationsEnabled),
-    perRunReportsEnabled: Boolean(o.perRunReportsEnabled),
-    dailyDigestEnabled: Boolean(o.dailyDigestEnabled),
-    updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : new Date().toISOString(),
-  };
+
+  const prodNew = normalizeTargetBlock(o.prod);
+  const stagingNew = normalizeTargetBlock(o.staging);
+  if (prodNew && stagingNew) {
+    return {
+      overridesActive: o.overridesActive,
+      prod: prodNew,
+      staging: stagingNew,
+      updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : new Date().toISOString(),
+    };
+  }
+
+  // Ancien format plat (même politique prod + staging)
+  if ("notificationsEnabled" in o) {
+    const t: SlackTargetSettingsPersisted = {
+      notificationsEnabled: Boolean(o.notificationsEnabled),
+      perRunReportsEnabled: Boolean(o.perRunReportsEnabled),
+      dailyDigestEnabled: Boolean(o.dailyDigestEnabled),
+    };
+    return {
+      overridesActive: o.overridesActive,
+      prod: { ...t },
+      staging: { ...t },
+      updatedAt: typeof o.updatedAt === "string" ? o.updatedAt : new Date().toISOString(),
+    };
+  }
+
+  return null;
 }
 
 export async function loadSlackSettings(): Promise<SlackSettingsPersisted | null> {
@@ -97,4 +135,11 @@ export async function saveSlackSettings(data: SlackSettingsPersisted): Promise<v
     overridesActive: data.overridesActive,
     at: data.updatedAt,
   });
+}
+
+export function pickTargetSettings(
+  s: SlackSettingsPersisted,
+  target: SyncTarget,
+): SlackTargetSettingsPersisted {
+  return target === "staging" ? s.staging : s.prod;
 }

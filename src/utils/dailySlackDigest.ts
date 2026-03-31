@@ -1,8 +1,12 @@
-import { ensureLocalEnvLoaded } from "./loadEnvFile";
+import type { SyncTarget } from "../config";
 import type { StockSyncResult } from "../jobs/stockSync";
+import { ensureLocalEnvLoaded } from "./loadEnvFile";
 import { logger } from "./logger";
 import { postSlackIncomingWebhook } from "./slack";
-import { resolveSlackPolicy } from "./slackPolicy";
+import {
+  getSlackWebhookUrlForTarget,
+  resolveSlackPolicy,
+} from "./slackPolicy";
 import {
   type SyncRunRecord,
   SYNC_RUN_HISTORY_CAP,
@@ -134,31 +138,36 @@ function sectionForTarget(
   return lines.join("\n");
 }
 
-export function buildDailyDigestText(options: {
+/** Rapport journalier pour un seul environnement (webhook / politique indépendants prod vs staging). */
+export function buildDailyDigestTextForTarget(options: {
   runsInStore: SyncRunRecord[];
   reportYmd: string;
   timeZone: string;
   siteLabel?: string;
+  target: SyncTarget;
 }): DailyDigestBuildResult {
-  const { runsInStore, reportYmd, timeZone } = options;
+  const { runsInStore, reportYmd, timeZone, target } = options;
   const site = options.siteLabel?.trim() || "Middleware UK";
 
   const warnings: DailyDigestWarning[] = [];
   const yesterdayRuns = filterRunsForCalendarDay(runsInStore, reportYmd, timeZone);
+  const targetRuns = yesterdayRuns.filter((r) => r.target === target);
 
   if (runsInStore.length >= SYNC_RUN_HISTORY_CAP) {
     warnings.push("history_truncated");
   }
 
-  if (yesterdayRuns.length === 0) {
+  if (targetRuns.length === 0) {
     warnings.push("no_runs_yesterday");
   }
 
-  const prodRuns = yesterdayRuns.filter((r) => r.target === "prod");
-  const stagingRuns = yesterdayRuns.filter((r) => r.target === "staging");
+  const label = target === "prod" ? "Production (`prod`)" : "Staging (`staging`)";
+  const failedSkus = accumulateFailedSkus(targetRuns);
+  const section = sectionForTarget(label, targetRuns, failedSkus);
 
+  const envTitle = target === "prod" ? "Production" : "Staging";
   const header = [
-    `:calendar: *Rapport journalier — ${reportYmd}* (${timeZone})`,
+    `:calendar: *Rapport journalier — ${reportYmd}* (${timeZone}) — *${envTitle}*`,
     `_Synthèse des synchronisations stock (historique middleware). Site : ${site}_`,
     "",
   ];
@@ -170,15 +179,10 @@ export function buildDailyDigestText(options: {
     );
   }
 
-  const prodFailed = accumulateFailedSkus(prodRuns);
-  const stagingFailed = accumulateFailedSkus(stagingRuns);
-
-  let body = sectionForTarget("Production (`prod`)", prodRuns, prodFailed);
-  body += sectionForTarget("Staging (`staging`)", stagingRuns, stagingFailed);
-
-  if (warnings.includes("no_runs_yesterday") && yesterdayRuns.length === 0) {
+  let body = section;
+  if (warnings.includes("no_runs_yesterday") && targetRuns.length === 0) {
     body =
-      `_Aucune sync enregistrée pour le ${reportYmd} — vérifier les crons Netlify ou que l’historique n’a pas été réinitialisé._\n\n` +
+      `_Aucune sync enregistrée pour le ${reportYmd} (${target}) — vérifier les crons Netlify ou que l’historique n’a pas été réinitialisé._\n\n` +
       body;
   }
 
@@ -193,22 +197,9 @@ export async function sendDailySlackDigestFromEnv(now: Date = new Date()): Promi
   skipReason?: string;
   reportYmd?: string;
   timeZone?: string;
+  targetsSent?: SyncTarget[];
 }> {
   ensureLocalEnvLoaded();
-
-  const policy = await resolveSlackPolicy();
-  if (!policy.notifications) {
-    return { sent: false, skipReason: "slack_notifications_off" };
-  }
-  if (!policy.dailyDigest) {
-    return { sent: false, skipReason: "slack_digest_off" };
-  }
-
-  const webhook = (process.env.SLACK_WEBHOOK_URL ?? "").trim();
-  if (!webhook) {
-    logger.info("daily_slack_digest_skip", { reason: "no SLACK_WEBHOOK_URL" });
-    return { sent: false, skipReason: "no_webhook" };
-  }
 
   const timeZone = (process.env.SLACK_DAILY_DIGEST_TIMEZONE ?? DEFAULT_TZ).trim() || DEFAULT_TZ;
   const reportYmd = yesterdayYmdInTimezone(now, timeZone);
@@ -217,14 +208,40 @@ export async function sendDailySlackDigestFromEnv(now: Date = new Date()): Promi
   const { loadSyncHistorySnapshot } = await import("./syncRunHistory");
   const runsInStore = await loadSyncHistorySnapshot();
 
-  const { text, warnings } = buildDailyDigestText({
-    runsInStore,
-    reportYmd,
-    timeZone,
-    siteLabel,
-  });
+  const order: SyncTarget[] = ["prod", "staging"];
+  const targetsSent: SyncTarget[] = [];
 
-  await postSlackIncomingWebhook(webhook, { text });
-  logger.info("daily_slack_digest_sent", { reportYmd, timeZone, warnings });
-  return { sent: true, reportYmd, timeZone };
+  for (const target of order) {
+    const policy = await resolveSlackPolicy(target);
+    if (!policy.notifications || !policy.dailyDigest) {
+      logger.info("daily_slack_digest_skip", { target, reason: "slack_digest_or_notifications_off" });
+      continue;
+    }
+    const webhook = getSlackWebhookUrlForTarget(target);
+    if (!webhook) {
+      logger.info("daily_slack_digest_skip", { target, reason: "no_webhook" });
+      continue;
+    }
+    const { text, warnings } = buildDailyDigestTextForTarget({
+      runsInStore,
+      reportYmd,
+      timeZone,
+      siteLabel,
+      target,
+    });
+    await postSlackIncomingWebhook(target, webhook, { text });
+    targetsSent.push(target);
+    logger.info("daily_slack_digest_sent", { target, reportYmd, timeZone, warnings });
+  }
+
+  if (targetsSent.length === 0) {
+    return {
+      sent: false,
+      skipReason: "no_target_eligible_or_no_webhook",
+      reportYmd,
+      timeZone,
+    };
+  }
+
+  return { sent: true, reportYmd, timeZone, targetsSent };
 }

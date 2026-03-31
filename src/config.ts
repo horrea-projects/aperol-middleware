@@ -199,7 +199,13 @@ export function buildConfig(target: SyncTarget): AppConfig {
         apiKey: process.env.WMS_API_KEY ?? ""
       };
 
-  const slackWebhook = process.env.SLACK_WEBHOOK_URL ?? "";
+  const slackWebhook =
+    target === "staging"
+      ? (() => {
+          const st = (process.env.STAGING_SLACK_WEBHOOK_URL ?? "").trim();
+          return st || (process.env.SLACK_WEBHOOK_URL ?? "").trim();
+        })()
+      : (process.env.SLACK_WEBHOOK_URL ?? "").trim();
 
   return {
     target,
