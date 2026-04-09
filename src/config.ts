@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { normalizeSku } from "./utils/skuNormalize";
 
 /** URL de base API Byrd (prod). Construite ainsi pour ne pas dupliquer une chaîne unique repérée par le scan Netlify. */
 const BYRD_BASE = "https://" + ["api", "getbyrd", "com"].join(".");
@@ -121,6 +122,9 @@ export interface AppConfig {
   fileLog: {
     logPath: string;
   };
+  sync: {
+    excludedSkus: Set<string>;
+  };
 }
 
 const configAls = new AsyncLocalStorage<AppConfig>();
@@ -149,6 +153,17 @@ export function getProdConfig(): AppConfig {
 }
 
 export function buildConfig(target: SyncTarget): AppConfig {
+  const excludedSkusRaw =
+    target === "staging"
+      ? (process.env.STAGING_SYNC_EXCLUDED_SKUS ?? "").trim()
+      : (process.env.PROD_SYNC_EXCLUDED_SKUS ?? process.env.SYNC_EXCLUDED_SKUS ?? "").trim();
+  const excludedSkus = new Set(
+    excludedSkusRaw
+      .split(",")
+      .map((s) => normalizeSku(s))
+      .filter((s) => s !== ""),
+  );
+
   const shopify =
     target === "staging"
       ? {
@@ -217,7 +232,10 @@ export function buildConfig(target: SyncTarget): AppConfig {
     },
     fileLog: {
       logPath: process.env.LOG_FILE_PATH ?? "." + "/middleware.log"
-    }
+    },
+    sync: {
+      excludedSkus,
+    },
   };
 }
 

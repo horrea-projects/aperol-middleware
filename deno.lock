@@ -15,6 +15,7 @@
         "npm:@netlify/functions@^2.8.0",
         "npm:@types/node@^25.5.0",
         "npm:cross-fetch@4",
+        "npm:dotenv@^16.4.5",
         "npm:typescript@^5.7.0"
       ]
     }

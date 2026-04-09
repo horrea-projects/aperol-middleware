@@ -18,6 +18,7 @@ import {
   normalizeSku,
   shortShopifyInventoryItemGid
 } from "../../src/utils/skuNormalize";
+import { loadSyncExclusionsSetForTarget } from "../../src/utils/syncExclusionsStore";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,21 @@ export const handler: Handler = async (event) => {
 
   if (!sku) {
     return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: "missing_sku" }) };
+  }
+  const uiExcludedSkus = await loadSyncExclusionsSetForTarget(target);
+  const allExcludedSkus = new Set([...config.sync.excludedSkus, ...uiExcludedSkus]);
+  if (allExcludedSkus.has(sku)) {
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        target,
+        sku,
+        skipped: true,
+        reason: "sku_excluded_from_sync",
+        message: "Ce SKU est exclu de la synchronisation.",
+      }),
+    };
   }
 
   return runWithConfig(config, async () => {

@@ -92,6 +92,7 @@ Copiez **`.env.example`** vers **`.env`** et complétez. Résumé :
 | **Byrd** | `BYRD_API_KEY`, `BYRD_API_SECRET`, `BYRD_WAREHOUSE_ID` (recommandé), `BYRD_BASE_URL` (optionnel) |
 | **WMS générique** | `WMS_BASE_URL`, `WMS_API_KEY` (si pas Byrd) |
 | **Staging Byrd / WMS** | `STAGING_BYRD_*` ou `STAGING_WMS_*` (optionnel ; sinon réutilisation des clés prod pour la lecture WMS) |
+| **Exclusions SKU sync stock** | Via dashboard (champ par environnement) ; fallback possible via `PROD_SYNC_EXCLUDED_SKUS` (CSV) et `STAGING_SYNC_EXCLUDED_SKUS` (CSV) |
 | **Slack** | `SLACK_WEBHOOK_URL` ; **`SLACK_NOTIFICATIONS=0`** pour tout couper ; **`SLACK_PER_RUN_REPORTS=0`** pour ne garder que le digest ; **`SLACK_DAILY_DIGEST=0`** pour couper le digest seul (voir [`docs/SCOPES_AND_ENV.md`](./docs/SCOPES_AND_ENV.md)) |
 | **Dashboard** | `DASHBOARD_PASSWORD` (accès UI + API de lecture), optionnel `DASHBOARD_AUTH_SECRET` |
 | **Logs fichier** | `LOG_FILE_PATH` (local ou si fichier accessible sur l’hôte) |

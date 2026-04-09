@@ -1027,6 +1027,67 @@
               </div>
             </div>
 
+            <div
+              class="card"
+              style="margin-top: 0.65rem; padding: 0.9rem 1rem"
+              id="sync-exclusions-card"
+            >
+              <h3
+                style="
+                  margin: 0 0 0.45rem 0;
+                  font-size: 1rem;
+                  font-weight: 600;
+                "
+              >
+                SKU exclus de la sync stock
+              </h3>
+              <p
+                id="sync-exclusions-env-title"
+                style="
+                  margin: 0 0 0.35rem 0;
+                  font-size: 0.88rem;
+                  font-weight: 500;
+                  color: var(--text);
+                "
+              >
+                —
+              </p>
+              <p
+                style="margin: 0 0 0.65rem 0; font-size: 0.82rem; color: var(--muted); line-height: 1.4"
+              >
+                Liste séparée par virgules (ex: BUNDLE-001, PACK-XYZ). Les SKU saisis ici sont ignorés pendant la sync stock.
+              </p>
+              <div id="sync-exclusions-loading" class="loading">Chargement…</div>
+              <div
+                id="sync-exclusions-error"
+                class="error-msg"
+                style="display: none"
+              ></div>
+              <div id="sync-exclusions-panel" style="display: none">
+                <textarea
+                  id="sync-exclusions-input"
+                  rows="3"
+                  placeholder="SKU-A, SKU-B, SKU-C"
+                  style="
+                    width: 100%;
+                    font: inherit;
+                    padding: 0.55rem 0.65rem;
+                    border-radius: 8px;
+                    border: 1px solid var(--border);
+                    background: var(--surface);
+                    color: var(--text);
+                    resize: vertical;
+                    margin-bottom: 0.55rem;
+                  "
+                ></textarea>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center">
+                  <button type="button" id="sync-exclusions-save">
+                    Enregistrer les exclusions
+                  </button>
+                </div>
+              </div>
+            </div>
+
     <div class="card">
       <div id="stock-loading" class="loading">Chargement…</div>
               <div
@@ -1297,6 +1358,11 @@
         prod: { notify: true, perRun: true, digest: true },
         staging: { notify: true, perRun: true, digest: true },
       };
+      /** Brouillon exclusions SKU (prod + staging), édité selon l’environnement courant. */
+      var syncExclusionsDraft = {
+        prodCsv: "",
+        stagingCsv: "",
+      };
 
       function flushSyncScheduleDraftFromForm() {
         var e = document.getElementById("sync-sched-enabled");
@@ -1393,6 +1459,27 @@
           (effT && effT.perRunReports ? "oui" : "non") +
           ", digest " +
           (effT && effT.dailyDigest ? "oui" : "non");
+      }
+
+      function flushSyncExclusionsDraftFromForm() {
+        var input = document.getElementById("sync-exclusions-input");
+        if (!input) return;
+        if (currentTarget === "prod") syncExclusionsDraft.prodCsv = input.value || "";
+        else syncExclusionsDraft.stagingCsv = input.value || "";
+      }
+
+      function applySyncExclusionsFormFromDraft() {
+        var input = document.getElementById("sync-exclusions-input");
+        var title = document.getElementById("sync-exclusions-env-title");
+        if (title) {
+          title.textContent =
+            "Exclusions pour : " + (currentTarget === "prod" ? "Production" : "Staging");
+        }
+        if (!input) return;
+        input.value =
+          currentTarget === "prod"
+            ? syncExclusionsDraft.prodCsv || ""
+            : syncExclusionsDraft.stagingCsv || "";
       }
 
       function apiFetch(url, init) {
@@ -1812,6 +1899,7 @@
         applyContextVisuals();
         await loadOverviewAndShowLanding();
         await loadSyncSchedulePanel();
+        await loadSyncExclusionsPanel();
       }
 
       document
@@ -1913,12 +2001,14 @@
       function switchEnv(target) {
         flushSyncScheduleDraftFromForm();
         flushSlackDraftFromForm();
+        flushSyncExclusionsDraftFromForm();
         currentTarget = target === "staging" ? "staging" : "prod";
         var sel = document.getElementById("env-select");
         if (sel) sel.value = currentTarget;
         applyContextVisuals();
         applySyncScheduleFormFromDraft();
         applySlackDraftToForm();
+        applySyncExclusionsFormFromDraft();
         loadStock();
         loadSyncRuns();
       }
@@ -2654,6 +2744,71 @@
         await loadSyncRuns();
       }
 
+      async function loadSyncExclusionsPanel() {
+        var loading = document.getElementById("sync-exclusions-loading");
+        var panel = document.getElementById("sync-exclusions-panel");
+        var errEl = document.getElementById("sync-exclusions-error");
+        if (loading) loading.style.display = "";
+        if (panel) panel.style.display = "none";
+        if (errEl) {
+          errEl.style.display = "none";
+          errEl.textContent = "";
+        }
+        try {
+          var r = await apiFetch(functionsBase + "/sync-exclusions-settings", {
+            method: "GET",
+            cache: "no-store",
+          });
+          if (r.status === 401) return;
+          var data = await r.json().catch(function () {
+            return {};
+          });
+          if (!r.ok)
+            throw new Error(data.error || "HTTP " + r.status);
+          var st = data.stored || {};
+          syncExclusionsDraft.prodCsv = Array.isArray(st.prod) ? st.prod.join(", ") : "";
+          syncExclusionsDraft.stagingCsv = Array.isArray(st.staging)
+            ? st.staging.join(", ")
+            : "";
+          applySyncExclusionsFormFromDraft();
+          if (loading) loading.style.display = "none";
+          if (panel) panel.style.display = "";
+        } catch (e) {
+          if (loading) loading.style.display = "none";
+          if (errEl) {
+            errEl.style.display = "block";
+            errEl.textContent =
+              e.message || "Impossible de charger les exclusions SKU";
+          }
+        }
+      }
+
+      async function saveSyncExclusionsFromForm() {
+        flushSyncExclusionsDraftFromForm();
+        var body = {
+          prodCsv: syncExclusionsDraft.prodCsv || "",
+          stagingCsv: syncExclusionsDraft.stagingCsv || "",
+        };
+        var r = await apiFetch(functionsBase + "/sync-exclusions-settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (r.status === 401) return;
+        var data = await r.json().catch(function () {
+          return {};
+        });
+        if (!r.ok)
+          throw new Error(data.error || "Enregistrement HTTP " + r.status);
+        var st = data.stored || {};
+        syncExclusionsDraft.prodCsv = Array.isArray(st.prod) ? st.prod.join(", ") : "";
+        syncExclusionsDraft.stagingCsv = Array.isArray(st.staging)
+          ? st.staging.join(", ")
+          : "";
+        applySyncExclusionsFormFromDraft();
+        setApiBanner("Exclusions SKU enregistrées.");
+      }
+
     function escapeHtml(s) {
       if (s == null) return "";
         var div = document.createElement("div");
@@ -2740,6 +2895,14 @@
           });
         });
       }
+      var syncExclSaveBtn = document.getElementById("sync-exclusions-save");
+      if (syncExclSaveBtn) {
+        syncExclSaveBtn.addEventListener("click", function () {
+          void saveSyncExclusionsFromForm().catch(function (e) {
+            setApiBanner(e.message || "Erreur exclusions SKU");
+          });
+        });
+      }
       var syncUkFullBtn = document.getElementById("sync-uk-full-now");
       if (syncUkFullBtn) {
         syncUkFullBtn.addEventListener("click", async function () {
@@ -2772,6 +2935,7 @@
         .addEventListener("click", function () {
           activateTab("stock");
           void loadSyncSchedulePanel();
+          void loadSyncExclusionsPanel();
         });
       document
         .getElementById("tab-sync-runs")
