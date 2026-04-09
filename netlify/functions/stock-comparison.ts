@@ -166,11 +166,13 @@ export const handler: Handler = async (event) => {
       .map((sku) => {
         const byrdQty = byrdMap.get(sku) ?? null;
         const shopifyQty = shopifyMap.get(sku) ?? null;
+        const items = inventoryItemsBySku.get(sku) ?? [];
         const match =
           byrdQty !== null &&
           shopifyQty !== null &&
-          byrdQty === shopifyQty;
-        const items = inventoryItemsBySku.get(sku) ?? [];
+          (items.length > 1
+            ? items.every((it) => it.quantity === byrdQty)
+            : byrdQty === shopifyQty);
         const shopifyProductKind = aggregateProductKindForSku(items);
         return {
           sku,
