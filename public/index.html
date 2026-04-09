@@ -225,6 +225,40 @@
         color: var(--text);
         border-color: var(--accent);
       }
+      .sku-tags-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 0.55rem;
+      }
+      .sku-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.45rem;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: rgba(88, 166, 255, 0.12);
+        color: var(--text);
+        font-size: 0.78rem;
+        line-height: 1;
+      }
+      .sku-tag button {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        padding: 0;
+        font: inherit;
+        line-height: 1;
+      }
+      .sku-tag button:hover {
+        color: var(--err);
+      }
+      .sku-tags-empty {
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
 
       .tabs {
         display: flex;
@@ -1064,6 +1098,7 @@
                 style="display: none"
               ></div>
               <div id="sync-exclusions-panel" style="display: none">
+                <div id="sync-exclusions-tags" class="sku-tags-wrap"></div>
                 <textarea
                   id="sync-exclusions-input"
                   rows="3"
@@ -1363,6 +1398,31 @@
         prodCsv: "",
         stagingCsv: "",
       };
+      var SYNC_EXCLUSIONS_CACHE_KEY = "aperol:syncExclusions:cache:v1";
+
+      function saveSyncExclusionsDraftCache() {
+        try {
+          localStorage.setItem(
+            SYNC_EXCLUSIONS_CACHE_KEY,
+            JSON.stringify(syncExclusionsDraft),
+          );
+        } catch (e) {
+          /* ignore cache errors */
+        }
+      }
+
+      function loadSyncExclusionsDraftCache() {
+        try {
+          var raw = localStorage.getItem(SYNC_EXCLUSIONS_CACHE_KEY);
+          if (!raw) return;
+          var parsed = JSON.parse(raw);
+          if (!parsed || typeof parsed !== "object") return;
+          syncExclusionsDraft.prodCsv = String(parsed.prodCsv || "");
+          syncExclusionsDraft.stagingCsv = String(parsed.stagingCsv || "");
+        } catch (e) {
+          /* ignore cache errors */
+        }
+      }
 
       function flushSyncScheduleDraftFromForm() {
         var e = document.getElementById("sync-sched-enabled");
@@ -1464,8 +1524,13 @@
       function flushSyncExclusionsDraftFromForm() {
         var input = document.getElementById("sync-exclusions-input");
         if (!input) return;
-        if (currentTarget === "prod") syncExclusionsDraft.prodCsv = input.value || "";
-        else syncExclusionsDraft.stagingCsv = input.value || "";
+        var normalized = normalizeSkuCsv(input.value || "");
+        if (currentTarget === "prod") syncExclusionsDraft.prodCsv = normalized;
+        else syncExclusionsDraft.stagingCsv = normalized;
+        input.value =
+          currentTarget === "prod"
+            ? syncExclusionsDraft.prodCsv
+            : syncExclusionsDraft.stagingCsv;
       }
 
       function applySyncExclusionsFormFromDraft() {
@@ -1480,6 +1545,80 @@
           currentTarget === "prod"
             ? syncExclusionsDraft.prodCsv || ""
             : syncExclusionsDraft.stagingCsv || "";
+        renderSyncExclusionTags();
+      }
+
+      function parseSkuCsvToList(csv) {
+        var raw = String(csv || "");
+        var parts = raw.split(/[,;\n]+/g);
+        var out = [];
+        var seen = {};
+        for (var i = 0; i < parts.length; i++) {
+          var sku = String(parts[i] || "")
+            .trim()
+            .replace(/\s+/g, " ");
+          if (!sku) continue;
+          if (seen[sku]) continue;
+          seen[sku] = true;
+          out.push(sku);
+        }
+        return out;
+      }
+
+      function normalizeSkuCsv(csv) {
+        return parseSkuCsvToList(csv).join(", ");
+      }
+
+      function setCurrentSyncExclusionCsv(csv) {
+        var norm = normalizeSkuCsv(csv || "");
+        if (currentTarget === "prod") syncExclusionsDraft.prodCsv = norm;
+        else syncExclusionsDraft.stagingCsv = norm;
+      }
+
+      function getCurrentSyncExclusionCsv() {
+        return currentTarget === "prod"
+          ? syncExclusionsDraft.prodCsv || ""
+          : syncExclusionsDraft.stagingCsv || "";
+      }
+
+      function renderSyncExclusionTags() {
+        var host = document.getElementById("sync-exclusions-tags");
+        if (!host) return;
+        host.innerHTML = "";
+        var list = parseSkuCsvToList(getCurrentSyncExclusionCsv());
+        if (!list.length) {
+          var empty = document.createElement("span");
+          empty.className = "sku-tags-empty";
+          empty.textContent = "Aucun SKU exclu pour cet environnement.";
+          host.appendChild(empty);
+          return;
+        }
+        for (var i = 0; i < list.length; i++) {
+          (function (skuToDelete) {
+            var chip = document.createElement("span");
+            chip.className = "sku-tag";
+            var label = document.createElement("span");
+            label.textContent = skuToDelete;
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.setAttribute("aria-label", "Supprimer " + skuToDelete);
+            btn.title = "Supprimer";
+            btn.textContent = "x";
+            btn.addEventListener("click", function () {
+              var next = parseSkuCsvToList(getCurrentSyncExclusionCsv()).filter(function (s) {
+                return s !== skuToDelete;
+              });
+              setCurrentSyncExclusionCsv(next.join(", "));
+              var input = document.getElementById("sync-exclusions-input");
+              if (input) input.value = getCurrentSyncExclusionCsv();
+              renderSyncExclusionTags();
+              saveSyncExclusionsDraftCache();
+            });
+            chip.appendChild(label);
+            chip.appendChild(btn);
+            host.appendChild(chip);
+          })(list[i]);
+        }
       }
 
       function apiFetch(url, init) {
@@ -2770,6 +2909,7 @@
           syncExclusionsDraft.stagingCsv = Array.isArray(st.staging)
             ? st.staging.join(", ")
             : "";
+          saveSyncExclusionsDraftCache();
           applySyncExclusionsFormFromDraft();
           if (loading) loading.style.display = "none";
           if (panel) panel.style.display = "";
@@ -2780,6 +2920,9 @@
             errEl.textContent =
               e.message || "Impossible de charger les exclusions SKU";
           }
+          // Garde l’état local visible même si l’API est indisponible temporairement.
+          applySyncExclusionsFormFromDraft();
+          if (panel) panel.style.display = "";
         }
       }
 
@@ -2805,6 +2948,7 @@
         syncExclusionsDraft.stagingCsv = Array.isArray(st.staging)
           ? st.staging.join(", ")
           : "";
+        saveSyncExclusionsDraftCache();
         applySyncExclusionsFormFromDraft();
         setApiBanner("Exclusions SKU enregistrées.");
       }
@@ -2901,6 +3045,14 @@
           void saveSyncExclusionsFromForm().catch(function (e) {
             setApiBanner(e.message || "Erreur exclusions SKU");
           });
+        });
+      }
+      var syncExclInput = document.getElementById("sync-exclusions-input");
+      if (syncExclInput) {
+        syncExclInput.addEventListener("input", function () {
+          setCurrentSyncExclusionCsv(syncExclInput.value || "");
+          renderSyncExclusionTags();
+          saveSyncExclusionsDraftCache();
         });
       }
       var syncUkFullBtn = document.getElementById("sync-uk-full-now");
@@ -3095,6 +3247,7 @@
       });
 
       applyAllAutoSyncConfigs();
+      loadSyncExclusionsDraftCache();
       bootstrapSession();
   </script>
 </body>

@@ -18,7 +18,7 @@ function parseSkuCsv(raw: unknown): string[] {
   const str = String(raw ?? "");
   const out: string[] = [];
   const seen = new Set<string>();
-  for (const part of str.split(",")) {
+  for (const part of str.split(/[,;\n]+/g)) {
     const sku = normalizeSku(part);
     if (!sku || seen.has(sku)) continue;
     seen.add(sku);
