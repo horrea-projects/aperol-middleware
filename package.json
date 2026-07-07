@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
     "dev": "netlify dev",
+    "start": "node dist/src/server.js",
     "netlify:build": "npm run build",
     "shopify:auth-check": "node scripts/shopify_auth_check.mjs",
     "shopify:get-admin-token": "node scripts/shopify_get_admin_access_token_dev_dashboard.mjs",

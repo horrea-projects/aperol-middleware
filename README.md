@@ -99,6 +99,49 @@ Copiez **`.env.example`** vers **`.env`** et complétez. Résumé :
 
 Ne commitez jamais `.env` ni les secrets.
 
+## Déploiement (Coolify)
+
+Le dépôt peut maintenant être déployé sur **Coolify** via le `Dockerfile` fourni.
+
+### Runtime
+
+- Le dashboard statique est servi par un **serveur Node.js** (`src/server.ts`).
+- Les anciennes routes Netlify restent exposées telles quelles sous `/.netlify/functions/...`.
+- Le port d’écoute est `3000` (`PORT` surchargeable).
+- Vérification simple : `GET /healthz` renvoie `{ "ok": true }`.
+
+### Variables d’environnement
+
+Reprendre les mêmes variables que pour Netlify (`.env.example`), en les déclarant dans Coolify :
+
+- Shopify : `PROD_SHOPIFY_*`, `STAGING_SHOPIFY_*`
+- WMS / Byrd : `BYRD_*`, `WMS_*`, éventuels `STAGING_*`
+- Dashboard : `DASHBOARD_PASSWORD`, optionnel `DASHBOARD_AUTH_SECRET`
+- Slack : `SLACK_*`, `STAGING_SLACK_*`
+
+### Persistance
+
+Sans Netlify Blobs, les réglages dashboard (historique, exclusions SKU, Slack, planification) sont stockés sur le filesystem local, sous `data/`.
+
+Sur Coolify, il est recommandé de monter un **volume persistant** sur :
+
+```text
+/app/data
+```
+
+### Jobs planifiés à créer dans Coolify
+
+Les crons Netlify ne s’exécutent plus automatiquement. Il faut créer des appels HTTP planifiés vers ton domaine Coolify :
+
+- Sync complète prod :
+  `POST https://ton-domaine/.netlify/functions/sync-uk`
+- Sync complète staging :
+  `POST https://ton-domaine/.netlify/functions/sync-uk-staging`
+- Digest Slack quotidien :
+  `POST https://ton-domaine/.netlify/functions/daily-slack-digest-manual`
+
+Tu peux garder les mêmes fréquences que dans `netlify.toml`, ou les adapter directement dans Coolify.
+
 ## Déploiement (Netlify)
 
 Guide pas à pas : **[`docs/DEPLOY_NETLIFY.md`](./docs/DEPLOY_NETLIFY.md)** (liaison du dépôt, commande de build optionnelle, variables **Production** vs prévisualisations, crons, vérifications post-déploiement).
@@ -147,6 +190,8 @@ Fonctions utiles :
 | Commande | Description |
 |----------|-------------|
 | `npm run build` | Compilation TypeScript (`dist/`) |
+| `npm run typecheck` | Vérification TypeScript sans générer `dist/` |
+| `npm run start` | Lance le serveur Node pour Docker / Coolify |
 | `npm run shopify:auth-check` | Lit d’abord **`.env`** (priorité sur le shell), puis teste token statique ou `client_credentials`. |
 | `npm run shopify:get-admin-token` | Génère un **nouveau** token via OAuth *client credentials* (app **Dev Dashboard** avec `CLIENT_ID` / `CLIENT_SECRET`) — voir encadré ci‑dessous. |
 | `npm run shopify:get-admin-token:staging` | Idem pour le staging. |
