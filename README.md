@@ -129,18 +129,26 @@ Sur Coolify, il est recommandé de monter un **volume persistant** sur :
 /app/data
 ```
 
-### Jobs planifiés à créer dans Coolify
+### Sync automatique (cron intégré)
 
-Les crons Netlify ne s’exécutent plus automatiquement. Il faut créer des appels HTTP planifiés vers ton domaine Coolify :
+Sur Coolify/Docker, un **planificateur interne** démarre avec le serveur (`src/internalScheduler.ts`) :
 
-- Sync complète prod :
-  `POST https://ton-domaine/.netlify/functions/sync-uk`
-- Sync complète staging :
-  `POST https://ton-domaine/.netlify/functions/sync-uk-staging`
-- Digest Slack quotidien :
-  `POST https://ton-domaine/.netlify/functions/daily-slack-digest-manual`
+- tick toutes les **5 minutes** (comme `netlify.toml`) ;
+- lance `sync-uk` (prod) puis `sync-uk-staging` ;
+- respecte les réglages du dashboard (**Planification sync complète**) : actif/inactif et intervalle entre deux runs.
 
-Tu peux garder les mêmes fréquences que dans `netlify.toml`, ou les adapter directement dans Coolify.
+Variables utiles :
+
+| Variable | Défaut | Rôle |
+|----------|--------|------|
+| `INTERNAL_SYNC_CRON` | `1` | `0` pour désactiver le cron intégré |
+| `INTERNAL_SYNC_CRON_TICK_MS` | `300000` | Fréquence du tick en millisecondes |
+
+### Jobs HTTP optionnels (digest Slack)
+
+Le digest Slack quotidien n’est pas encore planifié en interne. Si besoin, créer un job HTTP Coolify :
+
+- `POST https://ton-domaine/.netlify/functions/daily-slack-digest-manual`
 
 ## Déploiement (Netlify)
 

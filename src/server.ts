@@ -1,4 +1,5 @@
 import "./utils/loadEnvFile";
+import { startInternalSyncScheduler } from "./internalScheduler";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -219,5 +220,6 @@ const server = createServer(async (req, res) => {
 const port = Number(process.env.PORT || 3000);
 server.listen(port, "0.0.0.0", () => {
   console.log(`[coolify] middleware listening on :${port}`);
+  startInternalSyncScheduler();
 });
 
